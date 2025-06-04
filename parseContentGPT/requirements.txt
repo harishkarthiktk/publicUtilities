@@ -1,0 +1,4 @@
+argparse
+openai
+keyring
+tqdm
