@@ -6,11 +6,16 @@ import html2text
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import time
+from tqdm import tqdm
 
-# Setup logging
+# Setup logging to file and stdout
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("logs.txt"),
+        logging.StreamHandler()
+    ]
 )
 
 def get_webdriver():
@@ -40,10 +45,10 @@ def url_to_filename(url):
     filename = url.replace('://', '_').replace('/', '_').replace(':', '').replace('?', '_').replace('&', '_').replace('=', '_')
     return f"{filename}.md"
 
-def save_content_to_file(content, filename):
-    """Save Markdown content to the specified file."""
-    os.makedirs('outputs', exist_ok=True)
-    filepath = os.path.join('outputs', filename)
+def save_content_to_file(content, filename, output_folder):
+    """Save Markdown content to a file in the specified output folder."""
+    os.makedirs(output_folder, exist_ok=True)
+    filepath = os.path.join(output_folder, filename)
     try:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write(content)
@@ -51,18 +56,21 @@ def save_content_to_file(content, filename):
     except Exception as e:
         logging.error(f"Failed to write {filepath}: {e}")
 
-def process_url(driver, url):
+def process_url(driver, url, output_folder):
     """Fetch a page, convert to Markdown, and save."""
-    html_content = fetch_page(driver, url)
-    if html_content:
-        md_content = html2text.html2text(html_content)
-        filename = url_to_filename(url)
-        save_content_to_file(md_content, filename)
-    else:
-        logging.warning(f"Skipped saving for {url} due to fetch failure.")
+    try:
+        html_content = fetch_page(driver, url)
+        if html_content:
+            md_content = html2text.html2text(html_content)
+            filename = url_to_filename(url)
+            save_content_to_file(md_content, filename, output_folder)
+        else:
+            logging.warning(f"Skipping saving for {url} due to fetch failure.")
+    except Exception as e:
+        logging.exception(f"Exception while processing {url}: {e}")
 
 def read_urls_from_file(file_path):
-    """Read URLs from a specified text file."""
+    """Read URLs from a text file."""
     urls = []
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
@@ -76,24 +84,38 @@ def read_urls_from_file(file_path):
         return []
 
 def main():
-    parser = argparse.ArgumentParser(description='Render pages from URLs in a file and save their content.')
-    parser.add_argument('-f', '--file', required=True, help='Path to a text file with URLs, one per line.')
+    parser = argparse.ArgumentParser(description='Render pages from URLs and save their content.')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-f', '--file', help='Path to a text file with URLs, one per line.')
+    group.add_argument('-u', '--url', help='A single URL to process.')
+    parser.add_argument('-o', '--output-folder', default='outputs', help='Folder to save the output files.')
     args = parser.parse_args()
 
-    urls = read_urls_from_file(args.file)
-    if not urls:
-        logging.error("No URLs to process. Exiting.")
-        return
+    # Prepare list of URLs
+    if args.file:
+        urls = read_urls_from_file(args.file)
+        if not urls:
+            logging.error("No URLs found in the file. Exiting.")
+            return
+        use_tqdm = True
+    else:
+        urls = [args.url]
+        use_tqdm = False
 
     driver = get_webdriver()
     if not driver:
-        logging.error("WebDriver initialization failed. Exiting.")
+        logging.error("Could not initialize WebDriver. Exiting.")
         return
 
     try:
-        for url in urls:
+        # Process URLs with or without tqdm
+        iterable = tqdm(urls, desc='Processing URLs') if use_tqdm else urls
+        for url in iterable:
             logging.info(f"Processing: {url}")
-            process_url(driver, url)
+            try:
+                process_url(driver, url, args.output_folder)
+            except Exception:
+                logging.exception(f"Error processing {url}")
     finally:
         driver.quit()
 
