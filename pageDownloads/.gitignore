@@ -2,7 +2,7 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
 ### CUSTOM IGNORES ###
-/output
+/outputs
 /input
 /env
 url_lists.txt
