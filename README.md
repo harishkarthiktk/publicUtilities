@@ -1,6 +1,8 @@
 # Consolidated Information
 
-Random utilities that I have written for various functions
+Random utilities that I have written for various functions.
+- Each of the following md-titles are auto-compressed into this single README file for ease of reading.
+- Suggest to review each of the respective README to ensure that no disclaimer is missed.
 
 
 # pageDownloads
