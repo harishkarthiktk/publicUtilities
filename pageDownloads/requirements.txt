@@ -1,0 +1,4 @@
+argparse
+logging
+html2text
+selenium
