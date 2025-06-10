@@ -39,7 +39,7 @@ def process_file(input_path, output_folder, client, log_file):
         ]
         
         response = client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model="gpt-4.1-nano",
             messages=messages,
             temperature=0.3
         )
