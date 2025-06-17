@@ -1,6 +1,8 @@
 # Flask File Server
 A self-hosted Flask-based utility for quickly transferring files between machines without needing to set up FTP or SMB shares.
 
+![Screenshot](https://raw.githubusercontent.com/harishkarthiktk/publicUtilities/refs/heads/master/fileServe/docs/Screenshot.png "File Serve with Upload Utility")
+
 ---
 
 ## Current Features
