@@ -11,7 +11,8 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024  # 5GB limit
 
 # Configuration
-SERVE_FOLDER = Path('serveFolder').resolve()
+# SERVE_FOLDER = Path(r'/Users/harish-5102/Downloads/Movie2Delete').resolve()
+SERVE_FOLDER = Path(r'serveFolder').resolve()
 TEMP_DIR = Path('temp_zips')
 UPLOAD_FOLDER = SERVE_FOLDER
 ALLOWED_EXTENSIONS = {'.txt', '.pdf', '.jpg', '.jpeg', '.png', '.zip', '.csv', '.json', '.md'}
