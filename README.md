@@ -1,4 +1,4 @@
--e # Consolidated Information
+# Consolidated Information
 
 Random utilities that I have written for various functions
 
