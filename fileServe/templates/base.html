@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Server - {{ root_path }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding-right: 320px;
+        }
+
+        #upload-panel {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: 300px;
+            height: 100vh;
+            background: #f5f5f5;
+            border-left: 1px solid #ddd;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        #drop-zone {
+            border: 2px dashed #aaa;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        #progress-bar {
+            height: 20px;
+            background: #eee;
+            margin-bottom: 10px;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        #progress-indicator {
+            height: 100%;
+            width: 0%;
+            background: #4CAF50;
+            transition: width 0.3s;
+        }
+
+        #file-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        .file-item {
+            padding: 5px;
+            margin: 3px 0;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9em;
+            word-break: break-word;
+        }
+
+        .file-list {
+            list-style: none;
+            padding-left: 10px;
+        }
+
+        .directory-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .directory-header {
+            cursor: pointer;
+            padding: 3px 0;
+            display: flex;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .directory-header:hover {
+            background-color: #f5f5f5;
+        }
+
+        .toggle-icon {
+            display: inline-block;
+            width: 15px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #666;
+            margin-right: 3px;
+        }
+
+        .directory-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .download-folder {
+            text-decoration: none;
+            color: #3498db;
+            padding: 0 5px;
+            font-size: 0.9em;
+        }
+
+        .download-folder:hover {
+            color: #2980b9;
+        }
+
+        .file {
+            color: #7f8c8d;
+            display: block;
+            padding: 3px 0;
+            text-decoration: none;
+        }
+
+        .file:hover {
+            background-color: #f5f5f5;
+        }
+
+        .file-size {
+            color: #95a5a6;
+            font-size: 0.8em;
+            margin-left: 5px;
+        }
+
+        .directory-contents {
+            list-style: none;
+            padding-left: 20px;
+            margin: 3px 0;
+        }
+
+        .controls {
+            margin-bottom: 15px;
+        }
+
+        button {
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+
+        button:hover {
+            background: #e0e0e0;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0 15px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-content">
+        <h1>File Server: {{ root_path }}</h1>
+        <div class="controls">
+            <button onclick="collapseAll()">Collapse All</button>
+            <button onclick="expandFirstLevel()">Expand First Level</button>
+        </div>
+        {% block content %}{% endblock %}
+    </div>
+
+    <div id="upload-panel">
+        <h3>Upload Files</h3>
+        <div id="drop-zone">
+            Drag & Drop Files or Folders Here
+        </div>
+        <div id="path-selector" style="display:none;">
+            <label>Target Path:</label>
+            <input type="text" id="upload-path" value="" placeholder="subfolder/path">
+            <button onclick="startUpload()">Upload</button>
+        </div>
+        <div id="upload-progress" style="display:none;">
+            <div id="progress-bar">
+                <div id="progress-indicator"></div>
+            </div>
+            <div id="progress-text">Preparing upload...</div>
+            <div id="file-list"></div>
+        </div>
+    </div>
+
+    <script>
+        function collapseAll() {
+            document.querySelectorAll('.directory-contents').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.querySelectorAll('.toggle-icon').forEach(el => {
+                el.textContent = '▶';
+            });
+        }
+
+        function expandFirstLevel() {
+            collapseAll();
+            document.querySelectorAll('.directory-item > .directory-contents').forEach(el => {
+                el.style.display = 'block';
+                el.previousElementSibling.querySelector('.toggle-icon').textContent = '▼';
+            });
+        }
+    </script>
+</body>
+</html>
