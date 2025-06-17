@@ -1,61 +1,99 @@
 # Flask File Server
 
-A simple Flask-based file server that allows browsing and downloading files from a designated folder, with upcoming drag-and-drop upload functionality.
+A self-hosted Flask-based utility for quickly transferring files between machines without needing to set up FTP or SMB shares.
 
-I have written this utility to quickly transfer files from and to my local machines, instead of accessing my ftp/smb networks.
+---
 
-## Features
+## Current Features
 
-- Browse files in the designated `serveFolder` directory
-- Download files via web interface
-- Basic security checks to prevent directory traversal
-- Upcoming feature: Drag-and-drop file/folder upload
+- **File Browser UI**: Explore folder structure starting from a configurable `serveFolder`
+- **Folder Support**: Nested directories are rendered and navigable
+- **File Download**: Any listed file can be downloaded via the web UI
+- **Drag-and-Drop Upload**: Upload single files or entire folder structures
+- **Basic Security**: Prevents directory traversal and unauthorized filesystem access
+- **Temp Zip Cleanup**: Folders downloaded as ZIPs are auto-cleaned after delivery
+- **File Filtering**: Only files with safe extensions (`.txt`, `.pdf`, `.jpg`, etc.) are accepted during upload
+
+---
+
+## Admin Info (Experimental)
+
+> (Planned section to appear at bottom of UI)
+
+- **Total file count**
+- **Total storage used**
+- **Lifespan indicators** for uploaded files (e.g., "uploaded 3 hours ago")
+
+---
+
+## Planned Security Features
+
+- **Access Token in URL** (e.g. `/?token=abc123`)
+- **Optional Upload Password**
+- **Rate Limiting or Time-Boxed Access**
+- **Access logs and audit trail** (optional)
+
+---
+
+## Planned Functional Features
+
+- **Select and Download Multiple Files as a ZIP**
+- **Unzip Uploaded ZIP Archives Automatically**
+- **QR Code for easy access from mobile devices**
+- **Auto-delete old files** (based on file age or max count)
+
+---
 
 ## Installation
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/harishkarthiktk/flask-file-server.git
-   cd flask-file-server
-   ```
+1. Clone the repository:
+```bash
+git clone https://github.com/harishkarthiktk/flask-file-server.git
+cd flask-file-server
+```
 
-2. Setup env if needed, install dependencies:
-   ```bash
-   python3 -m venv env
-   source activate env/bin/activate
-   python -m pip install -r requirements.txt
-   ```
+2. Create environment & install dependencies:
+```bash
+python3 -m venv env
+source env/bin/activate
+pip install -r requirements.txt
+```
 
 3. Run the app:
-   ```bash
-   python app.py
-   ```
-Access the file server in your browser at http://localhost:8000
+```bash
+python app.py
+```
+Then open [http://localhost:8000](http://localhost:8000) in your browser.
 
-## Important Considerations
-### Security Notes
-- The application checks for directory traversal attempts
-- Currently no authentication - anyone on your network can access files
-- For production use, consider adding:
-- Authentication
-- Rate limiting
-- HTTPS
+---
 
-### Configuration
-- Modify these variables in app.py as needed:
-- SERVE_FOLDER: Change to your preferred directory path
-- host="0.0.0.0": Change if you want to restrict access
-- port=8000: Change if you prefer a different port
+## Configuration
 
-### API Endpoints
-- GET /: Lists all available files with download links
-- GET /files/<filename>: Downloads the specified file
-- POST /upload (Coming soon): Will handle file uploads
+Edit these in `app.py` as needed:
 
-## Upcoming Features
-- Drag-and-drop file/folder upload interface
-- File upload endpoint
-- Progress indicators for uploads/downloads
-- Authentication options
-- Folder navigation (currently only shows files in root directory)
+| Variable       | Purpose                        |
+|----------------|---------------------------------|
+| `SERVE_FOLDER` | Root directory to serve files from |
+| `UPLOAD_FOLDER`| Where uploads get stored        |
+| `TEMP_DIR`     | Folder used to store temp zips  |
+| `port`         | Port number (default `8000`)     |
+| `host`         | Set to `0.0.0.0` to allow LAN access |
 
+---
+
+## API Endpoints
+
+| Method | Path                       | Description                      |
+|--------|----------------------------|----------------------------------|
+| GET    | `/`                        | Show browser UI with files       |
+| GET    | `/files/<path>`           | Download single file             |
+| GET    | `/download-folder/<path>` | Download folder as ZIP           |
+| POST   | `/upload`                 | Upload files/folders             |
+
+---
+
+## Considerations
+
+- This is a utility, not a hardened production tool
+- Great for LAN use, secure behind firewall/VPN
+- Avoid exposing it directly to the internet without hardening
