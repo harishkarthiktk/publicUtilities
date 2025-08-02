@@ -6,7 +6,7 @@ from pathlib import Path
 INCLUSION_EXTENSIONS = {"py", "js", "html", "md", "jinja2", "css"}
 EXCLUDED_FILES = {"z_allFiles.ignore", "z_util_compressProjectFiles.py"}
 EXCLUDED_DIRS = {"env", ".env", "venv", ".venv", ".git", "__pycache__", ".idea", ".vscode"}
-OUTPUT_FILE = "z_allFiles.ignore"
+OUTPUT_FILE = "z_allFiles.txt"
 
 def should_process_file(file_path: Path) -> bool:
     """Check if a file should be included based on its extension and directory path."""
