@@ -12,12 +12,10 @@
             padding: 20px;
             display: flex;
         }
-
         .main-content {
             flex-grow: 1;
             padding-right: 320px;
         }
-
         #upload-panel {
             position: fixed;
             right: 0;
@@ -29,7 +27,6 @@
             padding: 20px;
             overflow-y: auto;
         }
-
         #drop-zone {
             border: 2px dashed #aaa;
             padding: 40px;
@@ -37,8 +34,16 @@
             margin-bottom: 20px;
             border-radius: 5px;
             transition: all 0.3s;
+            cursor: pointer;
         }
-
+        #drop-zone:hover {
+            border-color: #3498db;
+            background-color: #f9f9f9;
+        }
+        #drop-zone.dragover {
+            border-color: #3498db;
+            background-color: #fbfcfe;
+        }
         #progress-bar {
             height: 20px;
             background: #eee;
@@ -46,14 +51,12 @@
             border-radius: 3px;
             overflow: hidden;
         }
-
         #progress-indicator {
             height: 100%;
             width: 0%;
             background: #4CAF50;
             transition: width 0.3s;
         }
-
         #file-list {
             max-height: 300px;
             overflow-y: auto;
@@ -61,7 +64,6 @@
             border-top: 1px solid #eee;
             padding-top: 10px;
         }
-
         .file-item {
             padding: 5px;
             margin: 3px 0;
@@ -69,18 +71,15 @@
             font-size: 0.9em;
             word-break: break-word;
         }
-
         .file-list {
             list-style: none;
             padding-left: 10px;
         }
-
         .directory-container {
             display: flex;
             align-items: center;
             gap: 5px;
         }
-
         .directory-header {
             cursor: pointer;
             padding: 3px 0;
@@ -88,11 +87,9 @@
             align-items: center;
             flex-grow: 1;
         }
-
         .directory-header:hover {
             background-color: #f5f5f5;
         }
-
         .toggle-icon {
             display: inline-block;
             width: 15px;
@@ -101,50 +98,41 @@
             color: #666;
             margin-right: 3px;
         }
-
         .directory-name {
             font-weight: bold;
             color: #2c3e50;
         }
-
         .download-folder {
             text-decoration: none;
             color: #3498db;
             padding: 0 5px;
             font-size: 0.9em;
         }
-
         .download-folder:hover {
             color: #2980b9;
         }
-
         .file {
             color: #7f8c8d;
             display: block;
             padding: 3px 0;
             text-decoration: none;
         }
-
         .file:hover {
             background-color: #f5f5f5;
         }
-
         .file-size {
             color: #95a5a6;
             font-size: 0.8em;
             margin-left: 5px;
         }
-
         .directory-contents {
             list-style: none;
             padding-left: 20px;
             margin: 3px 0;
         }
-
         .controls {
             margin-bottom: 15px;
         }
-
         button {
             padding: 5px 10px;
             margin-right: 5px;
@@ -153,17 +141,64 @@
             border: 1px solid #ddd;
             border-radius: 3px;
         }
-
         button:hover {
             background: #e0e0e0;
         }
-
+        button:disabled {
+            background: #f9f9f9;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
         input[type="text"] {
             width: 100%;
             padding: 8px;
             margin: 5px 0 15px;
             border: 1px solid #ddd;
             border-radius: 3px;
+        }
+        /* Toast CSS */
+        #flask-toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2147483647;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-end;
+            pointer-events: none;
+        }
+        .fl-toast {
+            min-width: 220px;
+            max-width: 420px;
+            padding: 10px 14px;
+            border-radius: 6px;
+            color: white;
+            font-family: Arial, Helvetica, sans-serif;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 220ms ease, transform 220ms ease;
+            pointer-events: auto;
+        }
+        .fl-toast.show { opacity: 1; transform: translateY(0); }
+        .fl-toast.success { background: #2e8b57; }
+        .fl-toast.warning { background: #2b6cb0; }
+        .fl-toast.error { background: #c53030; }
+        .fl-toast .title { font-weight: 700; margin-bottom: 6px; font-size: 13px; }
+        .fl-toast .msg { font-size: 13px; line-height: 1.2; opacity: 0.95; white-space: pre-wrap; }
+        .fl-toast .close-btn {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.9);
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .fl-toast-wrapper {
+            position: relative;
         }
     </style>
 </head>
@@ -176,16 +211,17 @@
         </div>
         {% block content %}{% endblock %}
     </div>
-
     <div id="upload-panel">
         <h3>Upload Files</h3>
         <div id="drop-zone">
-            Drag & Drop Files or Folders Here
+            Drag & Drop Files or Folders Here<br>
+            <small>or click to select path</small>
         </div>
         <div id="path-selector" style="display:none;">
             <label>Target Path:</label>
             <input type="text" id="upload-path" value="" placeholder="subfolder/path">
-            <button onclick="startUpload()">Upload</button>
+            <button id="upload-btn">Upload</button>
+            <button id="cancel-btn">Cancel</button>
         </div>
         <div id="upload-progress" style="display:none;">
             <div id="progress-bar">
@@ -195,24 +231,324 @@
             <div id="file-list"></div>
         </div>
     </div>
-
+    <div id="flask-toast-container"></div>
     <script>
-        function collapseAll() {
-            document.querySelectorAll('.directory-contents').forEach(el => {
-                el.style.display = 'none';
+    // File browser logic
+    function collapseAll() {
+        document.querySelectorAll('.directory-contents').forEach(el => {
+            el.style.display = 'none';
+        });
+        document.querySelectorAll('.toggle-icon').forEach(el => {
+            el.textContent = '▶';
+        });
+    }
+
+    function expandFirstLevel() {
+        collapseAll();
+        document.querySelectorAll('.directory-item > .directory-contents').forEach(el => {
+            el.style.display = 'block';
+            el.previousElementSibling.querySelector('.toggle-icon').textContent = '▼';
+        });
+    }
+
+    // Enhanced Toast System
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function showToast(message, type = 'success', title = '', duration = 4000) {
+        const container = document.getElementById('flask-toast-container');
+        const elWrap = document.createElement('div');
+        elWrap.className = 'fl-toast-wrapper';
+        
+        const el = document.createElement('div');
+        el.className = `fl-toast ${type}`;
+        
+        if (title) {
+            el.innerHTML = `<div class="title">${escapeHtml(title)}</div><div class="msg">${escapeHtml(message)}</div>`;
+        } else {
+            el.innerHTML = `<div class="msg">${escapeHtml(message)}</div>`;
+        }
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'close-btn';
+        closeBtn.innerHTML = '&times;';
+        closeBtn.onclick = () => removeToast(elWrap);
+        
+        elWrap.appendChild(el);
+        elWrap.appendChild(closeBtn);
+        container.appendChild(elWrap);
+        
+        requestAnimationFrame(() => el.classList.add('show'));
+        
+        if (duration > 0) {
+            setTimeout(() => removeToast(elWrap), duration);
+        }
+    }
+
+    function removeToast(elWrap) {
+        try {
+            const toast = elWrap.querySelector('.fl-toast');
+            if (toast) toast.classList.remove('show');
+            setTimeout(() => {
+                if (elWrap.parentNode) elWrap.parentNode.removeChild(elWrap);
+            }, 240);
+        } catch (e) {
+            try { 
+                if (elWrap.parentNode) elWrap.parentNode.removeChild(elWrap); 
+            } catch (e2) {}
+        }
+    }
+
+    function formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    // Enhanced Upload Logic
+    document.addEventListener('DOMContentLoaded', () => {
+        const dropZone = document.getElementById('drop-zone');
+        const pathInput = document.getElementById('upload-path');
+        const pathSelector = document.getElementById('path-selector');
+        const uploadProgressBlock = document.getElementById('upload-progress');
+        const progressIndicator = document.getElementById('progress-indicator');
+        const progressText = document.getElementById('progress-text');
+        const fileListEl = document.getElementById('file-list');
+        const uploadBtn = document.getElementById('upload-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        
+        let filesToUpload = [];
+        let currentXhr = null;
+
+        if (!dropZone) return;
+
+        function resetUploadUI() {
+            uploadProgressBlock.style.display = 'none';
+            pathSelector.style.display = 'none';
+            progressIndicator.style.width = '0%';
+            progressText.textContent = 'Preparing upload...';
+            filesToUpload = [];
+            fileListEl.innerHTML = '';
+            if (currentXhr) {
+                currentXhr.abort();
+                currentXhr = null;
+            }
+        }
+
+        // Drop zone click handler
+        dropZone.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (filesToUpload.length === 0) {
+                // If no files selected, open file picker
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
+                input.onchange = (e) => {
+                    if (e.target.files && e.target.files.length > 0) {
+                        filesToUpload = Array.from(e.target.files);
+                        showFileList(filesToUpload);
+                        pathSelector.style.display = 'block';
+                    }
+                };
+                input.click();
+            } else {
+                // If files already selected, toggle path selector
+                pathSelector.style.display = pathSelector.style.display === 'none' ? 'block' : 'none';
+            }
+        });
+
+        // Drag and drop styling
+        ['dragenter', 'dragover'].forEach(evt => {
+            dropZone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
             });
-            document.querySelectorAll('.toggle-icon').forEach(el => {
-                el.textContent = '▶';
+        });
+
+        ['dragleave', 'drop', 'dragend'].forEach(evt => {
+            dropZone.addEventListener(evt, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            });
+        });
+
+        // Handle file drop
+        dropZone.addEventListener('drop', (e) => {
+            const items = e.dataTransfer.files;
+            if (!items || items.length === 0) return;
+            
+            filesToUpload = Array.from(items);
+            showFileList(filesToUpload);
+            pathSelector.style.display = 'block';
+        });
+
+        // Upload button handler
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', () => {
+                if (filesToUpload.length > 0) {
+                    handleFiles(filesToUpload);
+                } else {
+                    showToast('No files to upload. Please drag and drop files first.', 'warning', 'No Files');
+                }
             });
         }
 
-        function expandFirstLevel() {
-            collapseAll();
-            document.querySelectorAll('.directory-item > .directory-contents').forEach(el => {
-                el.style.display = 'block';
-                el.previousElementSibling.querySelector('.toggle-icon').textContent = '▼';
+        // Cancel button handler
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                resetUploadUI();
             });
         }
+
+        function showFileList(files) {
+            uploadProgressBlock.style.display = 'block';
+            fileListEl.innerHTML = files.map(f => 
+                `<div class="file-item">${escapeHtml(f.name)} <span class="file-size">(${formatBytes(f.size)})</span></div>`
+            ).join('');
+            progressIndicator.style.width = '0%';
+            progressText.textContent = `Ready to upload ${files.length} file(s).`;
+        }
+
+        function handleFiles(files) {
+            if (!files.length) return;
+
+            uploadBtn.disabled = true;
+            progressIndicator.style.width = '0%';
+            progressText.textContent = `Preparing ${files.length} file(s)...`;
+
+            const fd = new FormData();
+            files.forEach((f, idx) => {
+                fd.append(`file_${idx}`, f, f.name);
+            });
+
+            const requestedPath = (pathInput && pathInput.value) ? pathInput.value.trim() : '';
+            if (requestedPath) fd.append('path', requestedPath);
+
+            currentXhr = new XMLHttpRequest();
+            currentXhr.open('POST', '/upload', true);
+            currentXhr.timeout = 300000; // 5 minutes timeout
+
+            currentXhr.upload.onprogress = function (evt) {
+                if (evt.lengthComputable) {
+                    const percent = Math.round((evt.loaded / evt.total) * 100);
+                    progressIndicator.style.width = percent + '%';
+                    progressText.textContent = `Uploading: ${percent}% (${formatBytes(evt.loaded)} / ${formatBytes(evt.total)})`;
+                } else {
+                    progressText.textContent = 'Uploading...';
+                }
+            };
+
+            currentXhr.onload = function () {
+                uploadBtn.disabled = false;
+                let response;
+                
+                try {
+                    response = JSON.parse(currentXhr.responseText);
+                } catch (e) {
+                    const errorDetail = currentXhr.responseText ? currentXhr.responseText.substring(0, 200) : 'No response body';
+                    showToast(`Server returned invalid response: ${errorDetail}`, 'error', 'Parse Error', 10000);
+                    resetUploadUI();
+                    return;
+                }
+
+                const { status, message, files: uploadedFiles, errors } = response;
+
+                // Handle successful uploads
+                if (status === 'success') {
+                    showToast(message, 'success', 'Upload Successful');
+                    if (uploadedFiles && uploadedFiles.length > 0) {
+                        const filesList = uploadedFiles.map(f => `• ${f.name} (${formatBytes(f.size)})`).join('\n');
+                        showToast(`Files uploaded:\n${filesList}`, 'success', 'Upload Details', 6000);
+                    }
+                } 
+                // Handle partial uploads (some succeeded, some failed)
+                else if (status === 'warning') {
+                    showToast(message, 'warning', 'Partial Upload', 6000);
+                    
+                    // Show successful uploads
+                    if (uploadedFiles && uploadedFiles.length > 0) {
+                        const successList = uploadedFiles.map(f => `• ${f.name} (${formatBytes(f.size)})`).join('\n');
+                        showToast(`Successfully uploaded:\n${successList}`, 'success', 'Successful Files', 6000);
+                    }
+                    
+                    // Show detailed error information for failed files
+                    if (Array.isArray(errors) && errors.length > 0) {
+                        errors.forEach(err => {
+                            const errorType = err.type === 'warning' ? 'warning' : 'error';
+                            const errorTitle = err.type === 'warning' ? 'File Warning' : 'File Error';
+                            showToast(`${err.file}: ${err.message}`, errorType, errorTitle, 8000);
+                        });
+                    }
+                } 
+                // Handle complete upload failure
+                else if (status === 'error') {
+                    const errorMessage = message || 'An unknown error occurred during upload.';
+                    showToast(errorMessage, 'error', 'Upload Failed', 8000);
+                    
+                    // Show individual error details if available
+                    if (Array.isArray(errors) && errors.length > 0) {
+                        errors.forEach(err => {
+                            showToast(`${err.file}: ${err.message}`, 'error', 'File Error', 8000);
+                        });
+                    }
+                }
+                // Handle unexpected status
+                else {
+                    showToast(`Unexpected response status: ${status}. Message: ${message || 'No message'}`, 'error', 'Unknown Status', 8000);
+                }
+
+                progressIndicator.style.width = '100%';
+                progressText.textContent = 'Upload finished';
+                
+                // Clear the files after processing and optionally refresh
+                setTimeout(() => {
+                    resetUploadUI();
+                    if (status === 'success' || (status === 'warning' && uploadedFiles && uploadedFiles.length > 0)) {
+                        window.location.reload();
+                    }
+                }, 2000);
+            };
+
+            currentXhr.onerror = function () {
+                uploadBtn.disabled = false;
+                const errorMsg = `Network error occurred. Status: ${currentXhr.status || 'Unknown'}, StatusText: ${currentXhr.statusText || 'No status text'}`;
+                showToast(errorMsg, 'error', 'Network Error', 10000);
+                resetUploadUI();
+            };
+
+            currentXhr.ontimeout = function () {
+                uploadBtn.disabled = false;
+                showToast('Upload timed out. Please try again with smaller files or check your connection.', 'error', 'Timeout Error', 8000);
+                resetUploadUI();
+            };
+
+            currentXhr.onabort = function () {
+                uploadBtn.disabled = false;
+                showToast('Upload was cancelled.', 'warning', 'Upload Cancelled');
+                resetUploadUI();
+            };
+
+            currentXhr.send(fd);
+        }
+
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (currentXhr && currentXhr.readyState !== XMLHttpRequest.DONE) {
+                currentXhr.abort();
+            }
+        });
+    });
     </script>
 </body>
 </html>
