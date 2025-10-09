@@ -9,6 +9,7 @@
 logs.txt
 url_lists.txt
 cleanFiles.sh
+.venv
 
 
 ### Python ###

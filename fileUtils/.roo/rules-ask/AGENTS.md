@@ -1,0 +1,13 @@
+# Ask Mode Rules (Non-Obvious Only)
+- Folder structures may contain hidden or counterintuitive organization; verify folder names and their purposes.
+- The script relies on specific extension sets for videos and images; keep these sets updated to prevent misclassification.
+- The cleanup process skips the main "Pic" and "Vid" folders; verify these are correctly identified to avoid accidental deletions.
+- Command-line arguments (`-W`, `-R`, `-V`, `-P`) must be used correctly; validate inputs to prevent misoperation.
+- The script defaults to "vid" mode if no mode is specified, but "pic" mode overrides it.
+- The maximum recursion depth (`MAX_RECURSION=20`) is enforced; exceeding it may cause incomplete directory traversal.
+- The script uses `os.walk()` with depth control; understand how directory depth impacts file collection.
+- The script skips files already in the correct folder; ensure path resolution is accurate to prevent unnecessary moves.
+- Logs are critical for troubleshooting; monitor stdout/stderr for silent failures or issues.
+- The script's behavior depends on correct argument parsing; verify command-line inputs if issues arise.
+- The cleanup process removes empty folders, excluding "Pic" and "Vid"; verify these folder names are correct.
+- The script uses `shutil.move()` for file operations; ensure source files are accessible and not locked.

@@ -4,9 +4,9 @@
 organizeFiles.py
 
 Usage examples:
-  python organizeFiles.py -W /path/to/folder
-  python organizeFiles.py -W /path/to/folder -V
-  python organizeFiles.py -W /path/to/folder -P
+  python organizeFiles.py -w /path/to/folder
+  python organizeFiles.py -w /path/to/folder -V
+  python organizeFiles.py -w /path/to/folder -P
 """
 
 import argparse
@@ -21,6 +21,7 @@ from tqdm import tqdm
 
 # Configuration
 MAX_RECURSION = 20
+FOLDER_THRESHOLD = 3
 VIDEO_EXTS = {'.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpeg', '.mpg', '.3gp', '.m4v'}
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.tiff', '.tif', '.heic', '.webp'}
 
@@ -45,7 +46,7 @@ logger = setup_logging()
 
 def parse_args():
     p = argparse.ArgumentParser(description="Move files in a working directory into Vid/Pic organization.")
-    p.add_argument("-W", "--working-dir", required=True, type=Path,
+    p.add_argument("-w", "--working-dir", required=True, type=Path,
                    help="Target folder to scan and operate upon.")
     p.add_argument("-R", "--recursive", default="yes", choices=["yes", "no"],
                    help='Whether to recurse subfolders. Accepts "yes" or "no". Default: yes.')
@@ -53,6 +54,8 @@ def parse_args():
                    help="Move videos to root; other files into a Pic folder. (default if no mode is chosen)")
     p.add_argument("-P", "--pic", action="store_true",
                    help="Move images to root; other files into a Vid folder. Overrides --vid if both are present.")
+    p.add_argument("-f", "--force", action="store_true",
+                   help="Force proceed without confirmation prompt.")
     return p.parse_args()
 
 
@@ -189,6 +192,17 @@ def main():
     if total_jobs == 0:
         logger.info("No files need moving. Exiting.")
     else:
+        # Count unique folders to be reorganized
+        unique_folders = set(src.parent for src, dest_dir in move_jobs)
+        num_folders = len(unique_folders)
+        logger.info(f"Found {num_folders} unique folders to reorganize.")
+
+        if num_folders > FOLDER_THRESHOLD and not args.force:
+            confirm = input(f"More than {FOLDER_THRESHOLD} folders ({num_folders}) will be affected. Proceed? (y/n): ").lower().strip()
+            if confirm != 'y':
+                logger.info("Operation cancelled by user.")
+                return
+
         logger.info(f"Will operate on {total_jobs} files.")
         max_workers = min(32, (os.cpu_count() or 4) * 4)
         results = []
