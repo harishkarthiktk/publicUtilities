@@ -1,0 +1,5 @@
+.roo
+__pycache__
+.venv*
+logs
+cost_estimate_*

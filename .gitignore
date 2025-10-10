@@ -9,8 +9,11 @@
 logs.txt
 url_lists.txt
 cleanFiles.sh
-.venv
-
+.venv*
+.roo
+*output*
+.env
+token_analysis*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
