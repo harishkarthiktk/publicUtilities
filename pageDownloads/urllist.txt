@@ -1,0 +1,13 @@
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/prerequisite.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/prerequisite.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/oauth-2.0.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/portals.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/operations.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/input-data.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/search-criteria.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/pagination.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/response.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/common-error-code.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/postman-api-collection.html
+https://www.manageengine.com/products/service-desk/sdpod-v3-api/getting-started/api-index.html
+
