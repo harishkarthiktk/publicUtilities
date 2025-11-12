@@ -45,6 +45,19 @@ def url_to_filename(url):
     filename = url.replace('://', '_').replace('/', '_').replace(':', '').replace('?', '_').replace('&', '_').replace('=', '_')
     return f"{filename}.md"
 
+def sanitize_filename(title):
+    """Sanitize a title to a safe filename base."""
+    invalid_chars = r'<>:"/\|?*'
+    for char in invalid_chars:
+        title = title.replace(char, '_')
+    title = title.replace(' ', '_')
+    if len(title) > 200:
+        title = title[:200]
+    # Remove trailing dots or underscores if any
+    title = title.rstrip('.')
+    title = title.rstrip('_')
+    return title
+
 def save_content_to_file(content, filename, output_folder):
     """Save Markdown content to a file in the specified output folder."""
     os.makedirs(output_folder, exist_ok=True)
@@ -56,13 +69,22 @@ def save_content_to_file(content, filename, output_folder):
     except Exception as e:
         logging.error(f"Failed to write {filepath}: {e}")
 
-def process_url(driver, url, output_folder):
+def process_url(driver, url, output_folder, use_title=False):
     """Fetch a page, convert to Markdown, and save."""
     try:
         html_content = fetch_page(driver, url)
         if html_content:
             md_content = html2text.html2text(html_content)
-            filename = url_to_filename(url)
+            if use_title:
+                title = driver.title.strip()
+                if title:
+                    filename = sanitize_filename(title) + '.md'
+                    logging.info(f"Using title-based filename for {url}: {filename}")
+                else:
+                    filename = url_to_filename(url)
+                    logging.warning(f"Empty title for {url}, falling back to URL-based filename")
+            else:
+                filename = url_to_filename(url)
             save_content_to_file(md_content, filename, output_folder)
         else:
             logging.warning(f"Skipping saving for {url} due to fetch failure.")
@@ -89,6 +111,7 @@ def main():
     group.add_argument('-f', '--file', help='Path to a text file with URLs, one per line.')
     group.add_argument('-u', '--url', help='A single URL to process.')
     parser.add_argument('-o', '--output-folder', default='outputs', help='Folder to save the output files.')
+    parser.add_argument('-t', '--title', action='store_true', help='Use webpage title for output filename instead of URL.')
     args = parser.parse_args()
 
     # Prepare list of URLs
@@ -113,7 +136,7 @@ def main():
         for url in iterable:
             logging.info(f"Processing: {url}")
             try:
-                process_url(driver, url, args.output_folder)
+                process_url(driver, url, args.output_folder, args.title)
             except Exception:
                 logging.exception(f"Error processing {url}")
     finally:
