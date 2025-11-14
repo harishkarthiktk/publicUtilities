@@ -14,4 +14,16 @@ docker run -d \
   ollama/ollama
 
 
+podman run -d \
+  --name n8n \
+  --restart=always \
+≈  -p 5678:5678 \
+  -e GENERIC_TIMEZONE="Asia/Kolkata" \
+  -e TZ="Asia/Kolkata" \
+  -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
+  -e N8N_RUNNERS_ENABLED=true \
+  -v n8n_data:/home/node/.n8n \
+  docker.n8n.io/n8nio/n8n
+
+
 podman system df -v #to show space utilization of VM of podman, in OSX.
