@@ -73,9 +73,16 @@ def create_app():
     return flask_app
 
 
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
-    try:
-        app.run(debug=True, host="0.0.0.0", port=8000)
-    except Exception as e:
-        app.logger.exception(f"App failed to start: {e}")
+    pass
+    # Comment out for Gunicorn/Nginx deployment
+    # try:
+    #     app.run(debug=True, host="0.0.0.0", port=8000)
+    # except Exception as e:
+    #     app.logger.exception(f"App failed to start: {e}")
+    # For dev testing without Gunicorn, uncomment above
+    #
+    # To start using Gunicorn (for production deployment):
+    # gunicorn -w 4 -b 0.0.0.0:8002 app:app

@@ -1,0 +1,66 @@
+events {{
+    worker_connections 1024;
+}}
+
+http {{
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    # Server block for the file server
+    server {{
+        listen 8000;
+        server_name localhost;  # Or your LAN IP
+
+        # Proxy all dynamic requests to Flask/Gunicorn
+        location / {{
+            proxy_pass http://127.0.0.1:8002;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # Pass auth headers for Flask Basic Auth
+            proxy_pass_header Authorization;
+            proxy_pass_header WWW-Authenticate;
+
+            # Handle X-Accel-Redirect from Flask
+            proxy_intercept_errors off;
+            proxy_buffering off;  # For streaming large files
+        }}
+
+        # Internal location for X-Accel-Redirect (protected, only from Flask)
+        location /internal-files/ {{
+            internal;
+            alias {SERVE_FOLDER}/;
+
+            # Optimizations for large file transfers on LAN
+            sendfile on;
+            sendfile_max_chunk 1m;
+            tcp_nopush on;
+            tcp_nodelay on;
+
+            # Disable gzip for binary files to avoid CPU overhead
+            gzip off;
+
+            # Optional: Add expires for caching if files are immutable
+            # expires 1h;
+            # add_header Cache-Control "public";
+        }}
+
+        # Error pages (proxy to Flask if needed)
+        error_page 404 /error.html;
+        location = /error.html {{
+            proxy_pass http://127.0.0.1:8002;
+        }}
+
+        # Access and error logs (project-local for portability)
+        access_log {ACCESS_LOG};
+        error_log {ERROR_LOG};
+    }}
+}}

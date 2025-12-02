@@ -1,4 +1,5 @@
-from flask import send_file, abort, render_template, request, jsonify, after_this_request, Blueprint, current_app
+from flask import send_file, abort, render_template, request, jsonify, after_this_request, Blueprint, current_app, Response
+import mimetypes
 from markupsafe import escape
 from werkzeug.utils import secure_filename
 import os
@@ -122,11 +123,22 @@ def serve_file(filename):
         current_app.logger.warning(f"File not found: {filepath}")
         abort(404)
 
-    try:
-        return send_file(filepath)
-    except Exception as e:
-        current_app.logger.exception(f"Error sending file {filepath}: {e}")
-        abort(500)
+    # Use X-Accel-Redirect for Nginx to serve the file efficiently
+    response = Response(status=200)
+    response.headers['X-Accel-Redirect'] = f"/internal-files/{filename}"
+    
+    # Set content headers (Nginx will use these)
+    content_type, _ = mimetypes.guess_type(str(filepath))
+    if content_type:
+        response.headers['Content-Type'] = content_type
+    else:
+        response.headers['Content-Type'] = 'application/octet-stream'
+    
+    response.headers['Content-Disposition'] = f'attachment; filename="{Path(filename).name}"'
+    response.headers['Content-Length'] = str(filepath.stat().st_size)
+    
+    current_app.logger.info(f"X-Accel-Redirect issued for {filename}")
+    return response
 
 
 @bp.route('/download-folder/<path:foldername>')

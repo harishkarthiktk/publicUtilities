@@ -12,3 +12,5 @@ PyYAML>=6.0
 
 # Optional (for typing or dev)
 # types-MarkupSafe>=2.1.0
+
+gunicorn>=21.2.0
