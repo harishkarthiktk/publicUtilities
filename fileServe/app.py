@@ -9,9 +9,77 @@ import atexit
 import tempfile
 import logging
 from logging.handlers import RotatingFileHandler
+from flask_httpauth import HTTPBasicAuth
+import yaml
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024  # 5GB limit
+
+auth = HTTPBasicAuth()
+
+# Global cache for YAML users
+app.user_credentials_cache = None
+
+def load_yaml_users():
+    if app.user_credentials_cache is not None:
+        return app.user_credentials_cache
+
+    users_file = os.getenv('BASIC_AUTH_USERS_FILE', 'users.yaml')
+    users_path = Path(users_file).resolve()
+    print(f"DEBUG: Loading YAML from {users_path}, exists: {users_path.exists()}")
+    
+    if not users_path.exists():
+        app.logger.info("No YAML users file found, falling back to env credentials")
+        user_credentials_cache = None
+        return None
+
+    try:
+        with open(users_path, 'r') as f:
+            data = yaml.safe_load(f)
+        print(f"DEBUG: YAML data loaded: {data}")
+        app.logger.debug(f"YAML data loaded: {data}")
+        
+        if isinstance(data, dict):
+            if 'users' in data:
+                app.user_credentials_cache = data['users']
+            else:
+                app.user_credentials_cache = data
+            if app.user_credentials_cache is not None:
+                app.logger.info(f"Loaded {len(app.user_credentials_cache)} users from YAML")
+            else:
+                app.logger.warning("Loaded empty or invalid user credentials from YAML")
+            print(f"DEBUG: Returning user_credentials_cache: {app.user_credentials_cache}")
+            return app.user_credentials_cache
+        else:
+            print(f"DEBUG: Invalid YAML format, data type: {type(data)}")
+            app.logger.warning("Invalid YAML format: expected dict")
+            app.user_credentials_cache = None
+            return None
+    except Exception as e:
+        print(f"DEBUG: Exception loading YAML: {e}")
+        app.logger.error(f"Error loading YAML users file {users_path}: {e}")
+        app.user_credentials_cache = None
+        return None
+
+@auth.verify_password
+def verify_password(username, password):
+    # Try YAML first
+    yaml_users = load_yaml_users()
+    print(f"DEBUG: In verify_password, yaml_users for {username}: {yaml_users}")
+    app.logger.debug(f"YAML users loaded: {yaml_users}")
+    if yaml_users and username in yaml_users and yaml_users[username] == password:
+        app.logger.info(f"Successful Basic Auth (YAML) for user: {username}")
+        return username
+
+    # Fallback to env
+    expected_user = os.getenv('BASIC_AUTH_USER', 'admin')
+    expected_pass = os.getenv('BASIC_AUTH_PASSWORD', 'password')
+    if username == expected_user and password == expected_pass:
+        app.logger.info(f"Successful Basic Auth (ENV) for user: {username}")
+        return username
+    else:
+        app.logger.warning(f"Failed Basic Auth attempt for user: {username}")
+        return None
 
 # Configuration
 # SERVE_FOLDER = Path(r'/Users/harish-5102/Downloads/Movie2Delete').resolve()
@@ -57,8 +125,8 @@ def zip_folder(folder_path, zip_path):
         for root, _, files in os.walk(folder_path):
             for file in files:
                 file_path = Path(root) / file
-                # arcname relative to the folder being zipped, not the parent
-                arcname = file_path.relative_to(folder_path)
+                # arcname relative to SERVE_FOLDER to include folder name
+                arcname = str(file_path.relative_to(SERVE_FOLDER))
                 zipf.write(file_path, arcname)
 
 def get_file_tree(base_path, current_path=None, depth=0):
@@ -113,6 +181,7 @@ def safe_resolve_join(base: Path, *parts) -> Path:
     return candidate
 
 @app.route('/')
+@auth.login_required
 def list_files():
     try:
         file_tree = get_file_tree(SERVE_FOLDER)
@@ -126,33 +195,48 @@ def list_files():
         return render_template('error.html', message=str(e)), 500
 
 @app.route('/files/<path:filename>')
+@auth.login_required
 def serve_file(filename):
     try:
         filepath = (SERVE_FOLDER / filename).resolve()
-        app.logger.info(f"Request for file: {filename} -> {filepath}")
-        if not str(filepath).startswith(str(SERVE_FOLDER.resolve())):
-            app.logger.warning(f"Forbidden file access attempt: {filepath}")
-            abort(403)
-        if filepath.is_file():
-            return send_file(filepath)
+    except Exception as e:
+        app.logger.exception(f"Error resolving path for {filename}: {e}")
+        abort(500)
+    
+    app.logger.info(f"Request for file: {filename} -> {filepath}")
+    if not str(filepath).startswith(str(SERVE_FOLDER.resolve())):
+        app.logger.warning(f"Forbidden file access attempt: {filepath}")
+        abort(403)
+    
+    if not filepath.is_file():
         app.logger.warning(f"File not found: {filepath}")
         abort(404)
+    
+    try:
+        return send_file(filepath)
     except Exception as e:
-        app.logger.exception(f"Error serving file {filename}: {e}")
+        app.logger.exception(f"Error sending file {filepath}: {e}")
         abort(500)
 
 @app.route('/download-folder/<path:foldername>')
+@auth.login_required
 def download_folder(foldername):
     try:
         folderpath = (SERVE_FOLDER / foldername).resolve()
-        app.logger.info(f"Download request for folder: {foldername} -> {folderpath}")
-        if not str(folderpath).startswith(str(SERVE_FOLDER.resolve())):
-            app.logger.warning(f"Forbidden folder access attempt: {folderpath}")
-            abort(403)
-        if not folderpath.is_dir():
-            app.logger.warning(f"Folder not found for download: {folderpath}")
-            abort(404, "Folder not found")
+    except Exception as e:
+        app.logger.exception(f"Error resolving path for {foldername}: {e}")
+        abort(500)
+    
+    app.logger.info(f"Download request for folder: {foldername} -> {folderpath}")
+    if not str(folderpath).startswith(str(SERVE_FOLDER.resolve())):
+        app.logger.warning(f"Forbidden folder access attempt: {folderpath}")
+        abort(403)
+    
+    if not folderpath.is_dir():
+        app.logger.warning(f"Folder not found for download: {folderpath}")
+        abort(404, "Folder not found")
 
+    try:
         zip_filename = f"{folderpath.name}.zip"
         zip_path = TEMP_DIR / zip_filename
         zip_folder(folderpath, zip_path)
@@ -173,7 +257,6 @@ def download_folder(foldername):
             download_name=zip_filename,
             mimetype='application/zip'
         )
-
     except Exception as e:
         app.logger.exception(f"Error creating zip for {foldername}: {e}")
         if 'zip_path' in locals() and zip_path.exists():
@@ -185,6 +268,7 @@ def download_folder(foldername):
 
 
 @app.route('/upload', methods=['POST'])
+@auth.login_required
 def handle_upload():
     requested_target = request.form.get('path', '').strip()
     app.logger.info(f"Upload request received. form.path={requested_target}. Files keys: {list(request.files.keys())}")
@@ -197,22 +281,12 @@ def handle_upload():
     except Exception as e:
         error_msg = f'Invalid target path "{requested_target}": {str(e)}'
         app.logger.warning(f"Invalid target path provided: {requested_target} | err={e}")
-        return jsonify({
-            'status': 'error',
-            'message': error_msg,
-            'files': [],
-            'errors': [{'file': 'path', 'message': error_msg, 'type': 'error'}]
-        }), 200
+        abort(403, error_msg)
 
     if not str(target_path).startswith(str(Path(UPLOAD_FOLDER).resolve())):
         error_msg = f'Security violation: Path "{requested_target}" is outside allowed directory'
         app.logger.warning(f"Path check failed: target_path={target_path} not under upload folder {UPLOAD_FOLDER}")
-        return jsonify({
-            'status': 'error',
-            'message': error_msg,
-            'files': [],
-            'errors': [{'file': 'path', 'message': error_msg, 'type': 'error'}]
-        }), 200
+        abort(403, error_msg)
 
     if not request.files:
         app.logger.info("No files in request")

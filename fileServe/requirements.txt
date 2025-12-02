@@ -1,9 +1,11 @@
 # Core server
 Flask>=2.3.0
+Flask-HTTPAuth>=4.0.0
 Werkzeug>=2.3.0
 
 # Templating and safe escaping
 MarkupSafe
+PyYAML>=6.0
 
 # For testing
 # pytest>=7.4.0
