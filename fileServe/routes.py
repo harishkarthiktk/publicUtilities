@@ -33,34 +33,29 @@ def get_file_tree(base_path, current_path=None, depth=0):
     """
     current_path = current_path or base_path
     file_tree = []
-    try:
-        for item in sorted(os.listdir(current_path)):
-            full_path = current_path / item
-            relative_path = full_path.relative_to(base_path)
-            if full_path.is_dir():
-                file_tree.append({
-                    'name': item,
-                    'path': str(relative_path),
-                    'type': 'directory',
-                    'depth': depth,
-                    'children': get_file_tree(base_path, full_path, depth + 1)
-                })
-            else:
-                try:
-                    size = os.path.getsize(full_path)
-                except OSError:
-                    size = None
-                file_tree.append({
-                    'name': item,
-                    'path': str(relative_path),
-                    'type': 'file',
-                    'size': size,
-                    'depth': depth
-                })
-    except (FileNotFoundError, PermissionError) as e:
-        current_app.logger.warning(f"get_file_tree error for {current_path}: {e}")
-    except Exception as e:
-        current_app.logger.exception(f"Unexpected error in get_file_tree for {current_path}: {e}")
+    for item in sorted(os.listdir(current_path)):
+        full_path = current_path / item
+        relative_path = full_path.relative_to(base_path)
+        if full_path.is_dir():
+            file_tree.append({
+                'name': item,
+                'path': str(relative_path),
+                'type': 'directory',
+                'depth': depth,
+                'children': get_file_tree(base_path, full_path, depth + 1)
+            })
+        else:
+            try:
+                size = os.path.getsize(full_path)
+            except OSError:
+                size = None
+            file_tree.append({
+                'name': item,
+                'path': str(relative_path),
+                'type': 'file',
+                'size': size,
+                'depth': depth
+            })
     return file_tree
 
 
@@ -93,6 +88,8 @@ def safe_resolve_join(base: Path, *parts) -> Path:
 def list_files():
     try:
         serve_folder = current_app.config['SERVE_FOLDER']
+        if not serve_folder.exists():
+            raise FileNotFoundError(f"Directory not found: {serve_folder}")
         file_tree = get_file_tree(serve_folder)
         current_app.logger.info("Serving file browser root")
         return render_template('browser.html', files=file_tree, root_path=serve_folder.name)
