@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Note: Gunicorn does not work on Windows.
+# For Windows, install waitress: pip install waitress
+# Then run: waitress-serve --port=8002 --host=127.0.0.1 app:app
+
 # Start Gunicorn for Flask app on internal port 8002
 # Usage: ./start_gunicorn.sh [stop]
 
