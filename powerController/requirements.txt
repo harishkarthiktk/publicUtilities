@@ -1,0 +1,2 @@
+# No external dependencies required for this MVP.
+# Uses only standard Python libraries: tkinter, subprocess, re, threading, logging.
