@@ -6,7 +6,7 @@
 set -e
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VENV_DIR="${PROJECT_DIR}/env"  # Adjust if your venv is named differently
+VENV_DIR="${PROJECT_DIR}/.venv_fileserve"  # Adjust if your venv is named differently
 
 if [ "$1" = "stop" ]; then
     echo "Stopping Gunicorn..."
@@ -26,4 +26,4 @@ cd "$PROJECT_DIR"
 
 # Start Gunicorn (4 workers, gevent for async, timeout 120s for large files)
 echo "Starting Gunicorn on port 8002..."
-exec gunicorn -w 4 -k gevent --timeout 120 -b 127.0.0.1:8002 app:app
+exec gunicorn -w 4 --timeout 120 -b 127.0.0.1:8002 app:app

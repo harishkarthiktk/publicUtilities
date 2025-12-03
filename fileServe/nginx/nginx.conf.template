@@ -2,6 +2,7 @@ events {{
     worker_connections 1024;
 }}
 
+pid {PID_PATH};
 http {{
     include       mime.types;
     default_type  application/octet-stream;
@@ -28,6 +29,14 @@ http {{
             # Pass auth headers for Flask Basic Auth
             proxy_pass_header Authorization;
             proxy_pass_header WWW-Authenticate;
+
+            proxy_cache off;
+            proxy_set_header Cache-Control "no-cache, no-store, must-revalidate";
+            proxy_set_header Pragma "no-cache";
+            proxy_set_header Expires "0";
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
 
             # Handle X-Accel-Redirect from Flask
             proxy_intercept_errors off;

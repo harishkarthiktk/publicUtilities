@@ -4,35 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Server - {{ root_path }}</title>
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <style>
+        /* Custom overrides to preserve original behavior */
         body {
             font-family: Arial, sans-serif;
             line-height: 1.6;
-            margin: 0;
-            padding: 20px;
-            display: flex;
         }
-        .main-content {
-            flex-grow: 1;
-            padding-right: 320px;
-        }
-        #upload-panel {
-            position: fixed;
-            right: 0;
-            top: 0;
-            width: 300px;
-            height: 100vh;
-            background: #f5f5f5;
-            border-left: 1px solid #ddd;
-            padding: 20px;
-            overflow-y: auto;
-        }
+        .main-content .file:hover,.main-content .directory-header:hover{background-color:#f5f5f5;}
         #drop-zone {
-            border: 2px dashed #aaa;
-            padding: 40px;
-            text-align: center;
-            margin-bottom: 20px;
-            border-radius: 5px;
             transition: all 0.3s;
             cursor: pointer;
         }
@@ -44,53 +25,10 @@
             border-color: #3498db;
             background-color: #fbfcfe;
         }
-        #progress-bar {
-            height: 20px;
-            background: #eee;
-            margin-bottom: 10px;
-            border-radius: 3px;
-            overflow: hidden;
-        }
         #progress-indicator {
-            height: 100%;
-            width: 0%;
-            background: #4CAF50;
             transition: width 0.3s;
         }
-        #file-list {
-            max-height: 300px;
-            overflow-y: auto;
-            margin-top: 10px;
-            border-top: 1px solid #eee;
-            padding-top: 10px;
-        }
-        .file-item {
-            padding: 5px;
-            margin: 3px 0;
-            border-bottom: 1px solid #eee;
-            font-size: 0.9em;
-            word-break: break-word;
-        }
-        .file-list {
-            list-style: none;
-            padding-left: 10px;
-        }
-        .directory-container {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .directory-header {
-            cursor: pointer;
-            padding: 3px 0;
-            display: flex;
-            align-items: center;
-            flex-grow: 1;
-        }
-        .directory-header:hover {
-            background-color: #f5f5f5;
-        }
-        .toggle-icon {
+        .main-content .toggle-icon {
             display: inline-block;
             width: 15px;
             text-align: center;
@@ -98,141 +36,83 @@
             color: #666;
             margin-right: 3px;
         }
-        .directory-name {
+        .main-content .directory-name {
             font-weight: bold;
             color: #2c3e50;
         }
-        .download-folder {
-            text-decoration: none;
-            color: #3498db;
-            padding: 0 5px;
-            font-size: 0.9em;
-        }
-        .download-folder:hover {
-            color: #2980b9;
-        }
-        .file {
-            color: #7f8c8d;
-            display: block;
-            padding: 3px 0;
-            text-decoration: none;
-        }
-        .file:hover {
-            background-color: #f5f5f5;
-        }
-        .file-size {
+        .main-content .file-size {
             color: #95a5a6;
             font-size: 0.8em;
             margin-left: 5px;
         }
-        .directory-contents {
+        .main-content .directory-contents {
             list-style: none;
             padding-left: 20px;
             margin: 3px 0;
         }
-        .controls {
-            margin-bottom: 15px;
-        }
-        button {
-            padding: 5px 10px;
-            margin-right: 5px;
-            cursor: pointer;
-            background: #f0f0f0;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-        button:hover {
-            background: #e0e0e0;
-        }
-        button:disabled {
-            background: #f9f9f9;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        input[type="text"] {
-            width: 100%;
-            padding: 8px;
-            margin: 5px 0 15px;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-        /* Toast CSS */
-        #flask-toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 2147483647;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            align-items: flex-end;
-            pointer-events: none;
-        }
-        .fl-toast {
-            min-width: 220px;
-            max-width: 420px;
-            padding: 10px 14px;
-            border-radius: 6px;
-            color: white;
-            font-family: Arial, Helvetica, sans-serif;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-            opacity: 0;
-            transform: translateY(-8px);
-            transition: opacity 220ms ease, transform 220ms ease;
-            pointer-events: auto;
-        }
-        .fl-toast.show { opacity: 1; transform: translateY(0); }
-        .fl-toast.success { background: #2e8b57; }
-        .fl-toast.warning { background: #2b6cb0; }
-        .fl-toast.error { background: #c53030; }
-        .fl-toast .title { font-weight: 700; margin-bottom: 6px; font-size: 13px; }
-        .fl-toast .msg { font-size: 13px; line-height: 1.2; opacity: 0.95; white-space: pre-wrap; }
-        .fl-toast .close-btn {
-            position: absolute;
-            top: 6px;
-            right: 8px;
-            background: transparent;
-            border: none;
-            color: rgba(255,255,255,0.9);
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .fl-toast-wrapper {
-            position: relative;
-        }
     </style>
 </head>
-<body>
-    <div class="main-content">
-        <h1>File Server: {{ root_path }}</h1>
-        <div class="controls">
-            <button onclick="collapseAll()">Collapse All</button>
-            <button onclick="expandFirstLevel()">Expand First Level</button>
-        </div>
-        {% block content %}{% endblock %}
-    </div>
-    <div id="upload-panel">
-        <h3>Upload Files</h3>
-        <div id="drop-zone">
-            Drag & Drop Files or Folders Here<br>
-            <small>or click to select path</small>
-        </div>
-        <div id="path-selector" style="display:none;">
-            <label>Target Path:</label>
-            <input type="text" id="upload-path" value="" placeholder="subfolder/path">
-            <button id="upload-btn">Upload</button>
-            <button id="cancel-btn">Cancel</button>
-        </div>
-        <div id="upload-progress" style="display:none;">
-            <div id="progress-bar">
-                <div id="progress-indicator"></div>
+<body class="d-flex flex-column min-vh-100 bg-light">
+    <!-- Header Bar with Navbar -->
+    <nav class="navbar navbar-light bg-light shadow-sm">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">File Server: {{ root_path }}</span>
+            <div class="ms-auto">
+                <button class="btn btn-outline-primary me-2" onclick="collapseAll()">Collapse All</button>
+                <button class="btn btn-outline-primary" onclick="expandFirstLevel()">Expand First Level</button>
+                <button class="btn btn-outline-secondary btn-sm ms-2" onclick="togglePanel()">Hide Upload</button>
             </div>
-            <div id="progress-text">Preparing upload...</div>
-            <div id="file-list"></div>
+        </div>
+    </nav>
+
+    <div class="container-fluid flex-grow-1">
+        <div class="row">
+            <div class="col-md-9 p-3 main-content">
+                {% block content %}{% endblock %}
+            </div>
+            <div class="col-md-3 bg-light border-start" id="upload-panel">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Upload Files</h5>
+                        <button class="btn btn-sm btn-outline-secondary float-end" onclick="togglePanel()">Hide</button>
+                    </div>
+                    <div class="card-body">
+                        <div id="drop-zone" class="border border-dashed border-secondary rounded p-4 text-center mb-3">
+                            Drag & Drop Files or Folders Here<br>
+                            <small>or click to select path</small>
+                        </div>
+                        <div id="upload-progress" style="display:none;">
+                            <div class="progress mb-2">
+                                <div id="progress-indicator" class="progress-bar bg-success" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            <div id="progress-text">Preparing upload...</div>
+                            <div id="file-list" class="list-group"></div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div id="path-selector" style="display:none;">
+                            <label class="form-label">Target Path:</label>
+                            <input type="text" class="form-control" id="upload-path" value="" placeholder="subfolder/path">
+                            <button id="upload-btn" class="btn btn-primary mt-2">Upload</button>
+                            <button id="cancel-btn" class="btn btn-secondary mt-2">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <div id="flask-toast-container"></div>
+
+    <div id="flask-toast-container" class="position-fixed top-0 end-0 p-3"></div>
+
+    <!-- Bootstrap 5.3 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
     <script>
+    // Toggle Panel Function
+    function togglePanel() {
+        const panel = document.getElementById('upload-panel');
+        panel.classList.toggle('d-none');
+    }
+
     // File browser logic
     function collapseAll() {
         document.querySelectorAll('.directory-contents').forEach(el => {
@@ -264,47 +144,38 @@
 
     function showToast(message, type = 'success', title = '', duration = 4000) {
         const container = document.getElementById('flask-toast-container');
-        const elWrap = document.createElement('div');
-        elWrap.className = 'fl-toast-wrapper';
-        
-        const el = document.createElement('div');
-        el.className = `fl-toast ${type}`;
-        
-        if (title) {
-            el.innerHTML = `<div class="title">${escapeHtml(title)}</div><div class="msg">${escapeHtml(message)}</div>`;
-        } else {
-            el.innerHTML = `<div class="msg">${escapeHtml(message)}</div>`;
+        let alertType = type;
+        if (type === 'error') {
+            alertType = 'danger';
         }
-        
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'close-btn';
-        closeBtn.innerHTML = '&times;';
-        closeBtn.onclick = () => removeToast(elWrap);
-        
-        elWrap.appendChild(el);
-        elWrap.appendChild(closeBtn);
-        container.appendChild(elWrap);
-        
+        const el = document.createElement('div');
+        el.className = `alert alert-${alertType} alert-dismissible fade mb-2`;
+        el.setAttribute('role', 'alert');
+        let alertContent = '';
+        if (title) {
+            alertContent += '<h6 class="alert-heading mb-1">' + escapeHtml(title) + '</h6>';
+        }
+        alertContent += '<div class="mb-0" style="white-space: pre-wrap;">' + escapeHtml(message) + '</div>';
+        el.innerHTML = alertContent + '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+        container.appendChild(el);
         requestAnimationFrame(() => el.classList.add('show'));
-        
         if (duration > 0) {
-            setTimeout(() => removeToast(elWrap), duration);
+            setTimeout(() => {
+                const alertInstance = bootstrap.Alert.getInstance(el);
+                if (alertInstance) {
+                    alertInstance.close();
+                } else {
+                    el.classList.remove('show');
+                    setTimeout(() => {
+                        if (el.parentNode) {
+                            el.parentNode.removeChild(el);
+                        }
+                    }, 150);
+                }
+            }, duration);
         }
     }
 
-    function removeToast(elWrap) {
-        try {
-            const toast = elWrap.querySelector('.fl-toast');
-            if (toast) toast.classList.remove('show');
-            setTimeout(() => {
-                if (elWrap.parentNode) elWrap.parentNode.removeChild(elWrap);
-            }, 240);
-        } catch (e) {
-            try { 
-                if (elWrap.parentNode) elWrap.parentNode.removeChild(elWrap); 
-            } catch (e2) {}
-        }
-    }
 
     function formatBytes(bytes) {
         if (bytes === 0) return '0 Bytes';
@@ -335,6 +206,7 @@
             uploadProgressBlock.style.display = 'none';
             pathSelector.style.display = 'none';
             progressIndicator.style.width = '0%';
+            progressIndicator.setAttribute('aria-valuenow', '0');
             progressText.textContent = 'Preparing upload...';
             filesToUpload = [];
             fileListEl.innerHTML = '';
@@ -413,11 +285,10 @@
 
         function showFileList(files) {
             uploadProgressBlock.style.display = 'block';
-            fileListEl.innerHTML = files.map(f => 
-                `<div class="file-item">${escapeHtml(f.name)} <span class="file-size">(${formatBytes(f.size)})</span></div>`
-            ).join('');
+            fileListEl.innerHTML = files.map(function(f) { return '<div class="list-group-item d-flex justify-content-between align-items-center"><span>' + escapeHtml(f.name) + '</span><small class="text-muted">(' + formatBytes(f.size) + ')</small></div>'; }).join('');
             progressIndicator.style.width = '0%';
-            progressText.textContent = `Ready to upload ${files.length} file(s).`;
+            progressIndicator.setAttribute('aria-valuenow', '0');
+            progressText.textContent = 'Ready to upload ' + files.length + ' file(s).';
         }
 
         function handleFiles(files) {
@@ -425,7 +296,8 @@
 
             uploadBtn.disabled = true;
             progressIndicator.style.width = '0%';
-            progressText.textContent = `Preparing ${files.length} file(s)...`;
+            progressIndicator.setAttribute('aria-valuenow', '0');
+            progressText.textContent = 'Preparing ' + files.length + ' file(s)...';
 
             const fd = new FormData();
             files.forEach((f, idx) => {
@@ -443,7 +315,8 @@
                 if (evt.lengthComputable) {
                     const percent = Math.round((evt.loaded / evt.total) * 100);
                     progressIndicator.style.width = percent + '%';
-                    progressText.textContent = `Uploading: ${percent}% (${formatBytes(evt.loaded)} / ${formatBytes(evt.total)})`;
+                    progressIndicator.setAttribute('aria-valuenow', percent);
+                    progressText.textContent = 'Uploading: ' + percent + '% (' + formatBytes(evt.loaded) + ' / ' + formatBytes(evt.total) + ')';
                 } else {
                     progressText.textContent = 'Uploading...';
                 }
@@ -457,7 +330,7 @@
                     response = JSON.parse(currentXhr.responseText);
                 } catch (e) {
                     const errorDetail = currentXhr.responseText ? currentXhr.responseText.substring(0, 200) : 'No response body';
-                    showToast(`Server returned invalid response: ${errorDetail}`, 'error', 'Parse Error', 10000);
+                    showToast('Server returned invalid response: ' + errorDetail, 'error', 'Parse Error', 10000);
                     resetUploadUI();
                     return;
                 }
@@ -468,8 +341,8 @@
                 if (status === 'success') {
                     showToast(message, 'success', 'Upload Successful');
                     if (uploadedFiles && uploadedFiles.length > 0) {
-                        const filesList = uploadedFiles.map(f => `• ${f.name} (${formatBytes(f.size)})`).join('\n');
-                        showToast(`Files uploaded:\n${filesList}`, 'success', 'Upload Details', 6000);
+                        const filesList = uploadedFiles.map(function(f) { return '• ' + f.name + ' (' + formatBytes(f.size) + ')'; }).join('\n');
+                        showToast('Files uploaded:\n' + filesList, 'success', 'Upload Details', 6000);
                     }
                 } 
                 // Handle partial uploads (some succeeded, some failed)
@@ -478,8 +351,8 @@
                     
                     // Show successful uploads
                     if (uploadedFiles && uploadedFiles.length > 0) {
-                        const successList = uploadedFiles.map(f => `• ${f.name} (${formatBytes(f.size)})`).join('\n');
-                        showToast(`Successfully uploaded:\n${successList}`, 'success', 'Successful Files', 6000);
+                        const successList = uploadedFiles.map(function(f) { return '• ' + f.name + ' (' + formatBytes(f.size) + ')'; }).join('\n');
+                        showToast('Successfully uploaded:\n' + successList, 'success', 'Successful Files', 6000);
                     }
                     
                     // Show detailed error information for failed files
@@ -487,7 +360,7 @@
                         errors.forEach(err => {
                             const errorType = err.type === 'warning' ? 'warning' : 'error';
                             const errorTitle = err.type === 'warning' ? 'File Warning' : 'File Error';
-                            showToast(`${err.file}: ${err.message}`, errorType, errorTitle, 8000);
+                            showToast(err.file + ': ' + err.message, errorType, errorTitle, 8000);
                         });
                     }
                 } 
@@ -499,16 +372,17 @@
                     // Show individual error details if available
                     if (Array.isArray(errors) && errors.length > 0) {
                         errors.forEach(err => {
-                            showToast(`${err.file}: ${err.message}`, 'error', 'File Error', 8000);
+                            showToast(err.file + ': ' + err.message, 'error', 'File Error', 8000);
                         });
                     }
                 }
                 // Handle unexpected status
                 else {
-                    showToast(`Unexpected response status: ${status}. Message: ${message || 'No message'}`, 'error', 'Unknown Status', 8000);
+                    showToast('Unexpected response status: ' + status + '. Message: ' + (message || 'No message'), 'error', 'Unknown Status', 8000);
                 }
 
                 progressIndicator.style.width = '100%';
+                progressIndicator.setAttribute('aria-valuenow', '100');
                 progressText.textContent = 'Upload finished';
                 
                 // Clear the files after processing and optionally refresh
@@ -522,7 +396,7 @@
 
             currentXhr.onerror = function () {
                 uploadBtn.disabled = false;
-                const errorMsg = `Network error occurred. Status: ${currentXhr.status || 'Unknown'}, StatusText: ${currentXhr.statusText || 'No status text'}`;
+                const errorMsg = 'Network error occurred. Status: ' + (currentXhr.status || 'Unknown') + ', StatusText: ' + (currentXhr.statusText || 'No status text');
                 showToast(errorMsg, 'error', 'Network Error', 10000);
                 resetUploadUI();
             };

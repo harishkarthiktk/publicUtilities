@@ -1,4 +1,5 @@
 from flask import send_file, abort, render_template, request, jsonify, after_this_request, Blueprint, current_app, Response
+import requests
 import mimetypes
 from markupsafe import escape
 from werkzeug.utils import secure_filename
@@ -119,6 +120,20 @@ def serve_file(filename):
     if not filepath.is_file():
         current_app.logger.warning(f"File not found: {filepath}")
         abort(404)
+
+    # Check if Nginx is available before using X-Accel-Redirect
+    def check_nginx_availability():
+        try:
+            # Probe the internal-files path to verify Nginx can handle file serving requests
+            response = requests.get('http://127.0.0.1:8000/internal-files/nonexistent.txt', timeout=1)
+            # Expect a non-server error (e.g., 404 for nonexistent file)
+            return response.status_code < 500
+        except requests.RequestException:
+            return False
+
+    if not check_nginx_availability():
+        current_app.logger.warning("Nginx unavailable or not responding correctly, returning 500 error for file serve")
+        return render_template('error.html', message='File serving is temporarily unavailable due to a server issue. Please try again later.'), 500
 
     # Use X-Accel-Redirect for Nginx to serve the file efficiently
     response = Response(status=200)

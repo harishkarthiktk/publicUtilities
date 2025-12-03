@@ -60,6 +60,87 @@ document.addEventListener("DOMContentLoaded", function () {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    // Function to extract error message from error.html response
+    function extractErrorMessage(html) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const p = doc.querySelector('div.error p');
+        return p ? p.textContent.trim() : 'File serving is temporarily unavailable due to a server issue. Please try again later.';
+    }
+
+    // Intercept file download links
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a.file');
+        if (link) {
+            e.preventDefault();
+            const url = link.href;
+            const filename = link.textContent.trim().replace(/📄 /, '').replace(/\s*\(.*\)$/, ''); // Extract filename without icon and size
+
+            fetch(url, { method: 'HEAD' }) // Use HEAD to check without downloading
+                .then(response => {
+                    if (response.ok) {
+                        // Proceed with download
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                    } else {
+                        // Error, fetch full response for message
+                        fetch(url)
+                            .then(res => res.text())
+                            .then(html => {
+                                const message = extractErrorMessage(html);
+                                showToast(message, 'error', 'Download Failed');
+                            })
+                            .catch(() => showToast('Download failed due to network error.', 'error', 'Download Failed'));
+                    }
+                })
+                .catch(() => {
+                    // Network error, proceed with original link or show error
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                });
+        }
+    });
+
+    // Intercept folder download links
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest('a.download-folder');
+        if (link) {
+            e.preventDefault();
+            e.stopPropagation();
+            const url = link.href;
+            const foldername = new URL(url).pathname.split('/download-folder/')[1] || 'folder';
+
+            fetch(url, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        // Proceed with download
+                        window.open(url, '_blank');
+                    } else {
+                        // Error
+                        fetch(url)
+                            .then(res => res.text())
+                            .then(html => {
+                                const message = extractErrorMessage(html);
+                                showToast(message, 'error', 'Folder Download Failed');
+                            })
+                            .catch(() => showToast('Folder download failed due to network error.', 'error', 'Folder Download Failed'));
+                    }
+                })
+                .catch(() => {
+                    // Network error, open in new tab
+                    window.open(url, '_blank');
+                });
+        }
+    });
+
     const dropZone = document.getElementById('drop-zone');
     const pathSelector = document.getElementById('path-selector');
     const uploadProgress = document.getElementById('upload-progress');
