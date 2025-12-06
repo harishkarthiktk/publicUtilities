@@ -86,3 +86,6 @@ if __name__ == '__main__':
     #
     # To start using Gunicorn (for production deployment):
     # gunicorn -w 4 -b 0.0.0.0:8002 app:app
+    #
+    # To start using Waitress (for production deployment):
+    # waitress-serve --host=0.0.0.0 --port=8000 --threads=4 app:app
