@@ -63,6 +63,7 @@ def create_app():
     flask_app.config['TEMP_DIR'] = TEMP_DIR
     flask_app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
     flask_app.config['ALLOWED_EXTENSIONS'] = ALLOWED_EXTENSIONS
+    flask_app.config['USE_PURE_FLASK'] = config.get('use_pure_flask', False)
 
     # Register routes
     register_routes(flask_app)
@@ -79,13 +80,13 @@ if __name__ == '__main__':
     pass
     # Comment out for Gunicorn/Nginx deployment
     # try:
-    #     app.run(debug=True, host="0.0.0.0", port=8000)
+    #     app.run(debug=True, host="0.0.0.0", port=8002)
     # except Exception as e:
     #     app.logger.exception(f"App failed to start: {e}")
     # For dev testing without Gunicorn, uncomment above
     #
-    # To start using Gunicorn (for production deployment):
+    # To start using Gunicorn (for production deployment in UNIX systems):
     # gunicorn -w 4 -b 0.0.0.0:8002 app:app
     #
-    # To start using Waitress (for production deployment):
-    # waitress-serve --host=0.0.0.0 --port=8000 --threads=4 app:app
+    # To start using Waitress (for production deployment in Windows):
+    # waitress-serve --host=0.0.0.0 --port=8002 --threads=4 app:app
