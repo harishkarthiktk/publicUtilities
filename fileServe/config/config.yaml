@@ -1,7 +1,7 @@
 # Configuration for the file server application
-serve_folder: serveFolder
-temp_dir: temp_zips
-upload_folder: serveFolder
+serve_folder: data
+temp_dir: temp
+upload_folder: data
 allowed_extensions:
   - .txt
   - .pdf
@@ -13,4 +13,4 @@ allowed_extensions:
   - .json
   - .md
 max_content_length: 5368709120  # 5GB in bytes
-use_pure_flask: true  # Set to true for pure Flask serving (no Nginx); false for Nginx mode, both are possible
+use_pure_flask: false # Set to true for pure Flask serving (no Nginx); false for Nginx mode, both are possible

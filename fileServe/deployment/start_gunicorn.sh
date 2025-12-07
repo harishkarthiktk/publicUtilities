@@ -9,9 +9,9 @@
 
 set -e
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 VENV_DIR="${PROJECT_DIR}/.venv_fileserve"  # Adjust if your venv is named differently
-CONFIG_PATH="${PROJECT_DIR}/config.yaml"
+CONFIG_PATH="${PROJECT_DIR}/config/config.yaml"
 
 if [ "$1" = "stop" ]; then
     echo "Stopping Gunicorn..."
@@ -60,10 +60,10 @@ else
     echo "Nginx mode: Starting Gunicorn on internal port $PORT"
     # Generate and start Nginx if possible
     if command -v nginx >/dev/null 2>&1; then
-        cd nginx
+        cd deployment/nginx
         $PYTHON create-conf.py
-        cd ..
-        nginx -c $(pwd)/nginx/nginx.conf || echo "Nginx start failed; ensure config is valid"
+        cd "$PROJECT_DIR"
+        nginx -c "${PROJECT_DIR}/deployment/nginx/nginx.conf" || echo "Nginx start failed; ensure config is valid"
     else
         echo "Nginx not found in PATH; install for full Nginx mode"
     fi
@@ -71,4 +71,5 @@ fi
 
 # Start Gunicorn with mode-specific settings
 echo "Starting Gunicorn with $WORKERS workers, timeout $TIMEOUT on port $PORT..."
+cd "$PROJECT_DIR"
 exec gunicorn -w $WORKERS --timeout $TIMEOUT -k gevent -b 127.0.0.1:$PORT app:app

@@ -8,9 +8,9 @@ from pathlib import Path
 import zipfile
 import shutil
 import tempfile
-from core_auth import auth
+from app.core_auth import auth
 
-bp = Blueprint('main', __name__, template_folder='templates')
+bp = Blueprint('main', __name__, template_folder='../templates')
 
 
 def zip_folder(folder_path, zip_path):
@@ -408,7 +408,3 @@ def register_routes(app):
     Register the blueprint and set configuration values.
     """
     app.register_blueprint(bp)
-    app.config['ALLOWED_EXTENSIONS'] = {'.txt', '.pdf', '.jpg', '.jpeg', '.png', '.zip', '.csv', '.json', '.md'}
-    app.config['SERVE_FOLDER'] = Path('serveFolder').resolve()
-    app.config['TEMP_DIR'] = Path('temp_zips').resolve()
-    app.config['UPLOAD_FOLDER'] = app.config['SERVE_FOLDER']

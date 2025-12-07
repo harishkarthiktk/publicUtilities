@@ -6,21 +6,21 @@ import logging
 from logging.handlers import RotatingFileHandler
 import atexit
 import shutil
-from core_auth import auth, verify_password
-from routes import register_routes
+from .core_auth import auth, verify_password
+from .routes import register_routes
 
 
 def create_app():
     """Create and configure the Flask app."""
     # Load configuration from YAML
-    config_path = Path('config.yaml').resolve()
+    config_path = Path('config/config.yaml').resolve()
     if not config_path.exists():
         raise FileNotFoundError(f"Configuration file {config_path} not found.")
 
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
-    flask_app = Flask(__name__)
+    flask_app = Flask(__name__, template_folder='../templates')
     flask_app.config['MAX_CONTENT_LENGTH'] = config.get('max_content_length', 5 * 1024 * 1024 * 1024)  # Default 5GB
 
 

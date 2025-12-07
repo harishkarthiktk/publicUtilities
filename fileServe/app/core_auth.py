@@ -24,7 +24,7 @@ def load_yaml_users():
     if user_credentials_cache is not None:
         return user_credentials_cache
 
-    users_file = os.getenv('BASIC_AUTH_USERS_FILE', 'users.yaml')
+    users_file = os.getenv('BASIC_AUTH_USERS_FILE', 'config/users.yaml')
     users_path = Path(users_file).resolve()
     current_app.logger.debug(f"Loading YAML from {users_path}, exists: {users_path.exists()}")
 

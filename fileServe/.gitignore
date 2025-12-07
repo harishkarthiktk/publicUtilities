@@ -3,3 +3,6 @@ __pycache__
 temp_zips
 .venv
 logs
+data/
+temp/
+app/__pycache__/
