@@ -6,12 +6,17 @@ docker run -d \
   -v qdrant_data:/qdrant/storage \
   docker.io/qdrant/qdrant:latest
 
+# in windows env
 docker run -d \
   --gpus=all \
   -v ollama_data:/root/.ollama \
   -p 11434:11434 \
   --name ollama \
   docker.io/ollama/ollama
+
+# in linux env
+podman run -d --device nvidia.com/gpu=all --security-opt=label=disable -v ollama_data:/root/.ollama -p 11434:11434 --name ollama docker.io/ollama/ollama
+
 
 
 podman run -d \

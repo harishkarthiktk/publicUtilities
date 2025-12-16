@@ -13,4 +13,4 @@ allowed_extensions:
   - .json
   - .md
 max_content_length: 5368709120  # 5GB in bytes
-use_pure_flask: true  # Set to true for pure Flask serving (no Nginx); false for Nginx mode, both are possible
+use_pure_flask: false # Set to true for pure Flask serving (no Nginx); false for Nginx mode, both are possible
