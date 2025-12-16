@@ -1,7 +1,7 @@
 # Configuration for the file server application
-serve_folder: serveFolder
-temp_dir: temp_zips
-upload_folder: serveFolder
+serve_folder: data
+temp_dir: temp
+upload_folder: data
 allowed_extensions:
   - .txt
   - .pdf
