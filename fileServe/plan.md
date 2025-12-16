@@ -1,66 +1,75 @@
-# Project Reorganization Plan
+# Pure Flask File Serving Plan
 
-This document outlines the plan to reorganize the Flask file server project for a clean root directory. The goal is to compartmentalize files logically: separate Flask app code, configurations, deployment, data, docs, and tests. The root will contain only essential metadata files.
+## Evaluation of Current Setup
+- **Nginx Integration**: The system uses Nginx as a reverse proxy on port 8000, forwarding dynamic requests (e.g., `/`, `/files/<path>`) to Flask/Gunicorn on port 8002. For file downloads (`/files/<path>`), Flask issues an `X-Accel-Redirect` header, which instructs Nginx to serve the file directly from `serveFolder` using efficient `sendfile` (kernel-level zero-copy transfer). This bypasses Flask for large files, reducing load.
+- **Fallback Handling**: In [`routes.py`](routes.py:125-136), `serve_file` checks Nginx availability via a probe to `/internal-files/nonexistent.txt`. If unavailable, it returns a 500 error, preventing direct Flask serving.
+- **Why Nginx?**: Optimizes for large files (e.g., up to 5GB via `MAX_CONTENT_LENGTH`), low memory usage, and high concurrency. Auth and logic stay in Flask.
+- **Dependencies**: Requires Nginx config generation via [`nginx/create-conf.py`](nginx/create-conf.py), Gunicorn for Flask, and proper permissions on `serveFolder`.
 
-## 1. Current Structure Analysis
-- [x] Review root-level files and directories from environment_details.
-- [x] Categorize items: Flask code (app.py, routes.py, etc.), configs (config.yaml, users.yaml), deployment (start_gunicorn.sh, nginx/), data (serveFolder/), docs/meta (README.md, etc.), Flask std (static/, templates/, tests/).
-- [x] Identify clutter: 10+ root items mixing concerns.
+## Feasibility of Pure Flask
+- **Possible?**: Yes, fully feasible. Flask's [`send_file`](https://flask.palletsprojects.com/en/3.0.x/api/#flask.send_file) can serve files directly, streaming content to the client without loading the entire file into memory (uses Werkzeug's file streaming). No Nginx needed—Flask/Gunicorn can run standalone on port 8000.
+- **Pros**:
+  - Simpler deployment: Single process (e.g., `gunicorn app:app`), no proxy config or external service.
+  - Quick setup for development/testing: Ideal for your "quick server" use case.
+  - Maintains auth/upload/listing logic in Flask unchanged.
+  - Supports attachments, MIME types, and range requests (partial downloads).
+- **Cons/Limitations**:
+  - **Performance**: Less efficient than Nginx's `sendfile` for very large files (>1GB) or high traffic. Flask streams via Python, using more CPU/memory (e.g., ~10-20% higher load). For quick/low-traffic servers, this is negligible.
+  - **Concurrency**: Gunicorn workers (e.g., 4) handle requests, but each streaming download ties up a worker longer than Nginx.
+  - **No Zero-Copy**: Lacks kernel optimizations; test with your files (e.g., `serveFolder/cpu-z_2.17-en.exe` ~10MB) to confirm.
+  - **Edge Cases**: Very large uploads/downloads may hit timeouts (current 120s in Gunicorn); adjust via config.
+- **When to Use**: Perfect for quick, low-volume servers. If scaling to production/high-load, stick with Nginx or consider alternatives like uvicorn (ASGI) for better async I/O.
 
-## 2. Proposed Directory Structure
-- [x] Root: Only README.md, roadmap.md, .gitignore, requirements.txt.
-- [x] app/: Flask package with __init__.py, app.py, core_auth.py, routes.py, utils.py.
-- [x] config/: config.yaml (updated paths), users.yaml.
-- [x] deployment/: start_gunicorn.sh (updated), nginx/ (moved).
-- [x] data/: Renamed/moved from serveFolder/ (all contents).
-- [x] Keep at root: static/, templates/, docs/, tests/.
-- [x] Add: app/__init__.py, optional temp/ for zips.
-- [x] Rationale: Follows Flask/Python best practices; separates code/data/infra.
+## Suggested Implementation Plan
+To enable pure Flask serving without breaking Nginx mode, use a deterministic config-based selection (no fallbacks or probes). The user explicitly chooses the mode via config.yaml (future UI support possible). Changes are minimal: if-else branches in key locations to preserve existing code flow.
 
-## 3. Dependency Validation
-- [x] Imports: Update relatives (e.g., from .core_auth import auth); tests' sys.path adapts.
-- [x] Paths: Centralize in config.yaml (serve_folder: data); update hardcodes (e.g., Path('config/config.yaml')).
-- [x] Flask: template_folder='templates' (root-relative, fine).
-- [x] Tests: Update fixture 'serveFolder' to 'data'.
-- [x] Deployment: Script paths (CONFIG_PATH, cd deployment/nginx).
-- [x] Risks: Low; ~15-20 line changes, no external ties.
-- [x] Feasibility: High; config.yaml as single source.
+### Checklist
+- [ ] **Add Config Toggle**:
+  - In `config.yaml`, add `use_pure_flask: false` (default false for backward compatibility with current Nginx setup).
+  - Load in `app.py` as `flask_app.config['USE_PURE_FLASK'] = config.get('use_pure_flask', False)`.
 
-## 4. Migration Plan (Phased Checklist)
-### Phase 1: Prerequisites
-- [x] Backup: Git commit "Pre-reorg".
-- [x] Create dirs: mkdir app config deployment data temp.
+- [ ] **Modify `serve_file` Route** (in `routes.py`):
+  - Retain the existing Nginx probe (`check_nginx_availability`) but only use it if `not USE_PURE_FLASK`.
+  - If `USE_PURE_FLASK`:
+    - Directly use `return send_file(filepath, as_attachment=True, download_name=Path(filename).name, mimetype=content_type or 'application/octet-stream')`.
+    - Preserve headers: `Content-Length`, `Content-Disposition`.
+    - Log: "Serving via pure Flask".
+  - Else (Nginx mode):
+    - Run the probe; if fails, raise explicit error (e.g., 500: "Nginx required but unavailable").
+    - Issue `X-Accel-Redirect` as before.
+    - Log: "Serving via Nginx X-Accel-Redirect".
+  - Minimal delta: Wrap existing logic in `if not current_app.config['USE_PURE_FLASK']:` else block for pure Flask.
 
-### Phase 2: File Moves
-- [x] Move Flask code: mv app.py core_auth.py routes.py utils.py app/
-- [x] Create app/__init__.py (empty or expose app).
-- [x] Move configs: mv config.yaml users.yaml config/
-- [x] Move deployment: mv start_gunicorn.sh nginx deployment/
-- [x] Move/rename data: mv serveFolder/* data/ && mv serveFolder/README.md data/README.md && rmdir serveFolder
-- [x] Edit .gitignore: Add /data/, /temp/, app/__pycache__/.
+- [ ] **Handle Folder Downloads**:
+  - Already uses `send_file` for ZIPs—no change needed, as it's Flask-native and works in both modes.
 
-### Phase 3: Code and Config Updates
-- [x] config.yaml: serve_folder: data, temp_dir: temp, upload_folder: data.
-- [x] app/app.py: config_path = Path('config/config.yaml'); imports from .core_auth, .routes.
-- [x] app/routes.py: from .core_auth import auth; remove hardcode lines 412-414; ALLOWED_EXTENSIONS from config.
-- [x] app/core_auth.py: users_file default 'config/users.yaml'.
-- [x] deployment/start_gunicorn.sh: CONFIG_PATH=.../config/config.yaml; cd deployment/nginx; nginx path update.
-- [x] tests/conftest.py: 'serveFolder' → 'data' in fixture.
-- [x] app/__init__.py: from .app import create_app; app = create_app().
-- [x] README.md: Note new structure and run command.
+- [ ] **Deployment Adjustments**:
+  - For pure Flask (`use_pure_flask: true`): Run Gunicorn on port 8000 (update `start_gunicorn.sh` or command: `gunicorn -w 4 -b 0.0.0.0:8000 app:app`). No Nginx startup.
+  - For Nginx mode (`use_pure_flask: false`): Keep current setup—Gunicorn on 8002, Nginx on 8000.
+  - Add startup script checks: If pure Flask, skip Nginx commands; else, generate/start Nginx.
+  - Minimal delta: Conditional logic in `start_gunicorn.sh` based on config.
 
-### Phase 4: Verification
-- [x] Structure: ls -la (root clean?).
-- [x] Imports: python -c "from app import app".
-- [ ] Tests: pytest tests/ (100% pass).
-- [x] App Run: python -m app (imports work; uncomment run in app.py for full test).
-- [x] Deployment: cd deployment && ./start_gunicorn.sh; test http://localhost:8000 (use PYTHONPATH=. for waitress if needed).
-- [x] Features: Auth, file list, upload/download, zip, Nginx if enabled (imports/configs updated to support).
-- [ ] Commit: git add . && git commit -m "Post-reorg".
+- [ ] **Optimizations for Pure Flask**:
+  - Increase Gunicorn timeout/workers for large files (e.g., via command-line flags or config).
+  - Enable `sendfile` in Gunicorn if OS supports (via `--preload` or gevent worker).
+  - Monitor memory: Test with large files from `serveFolder`.
 
-## 5. Potential Adjustments
-- [ ] Optional: Move static/templates to app/ (update Blueprint).
-- [ ] Windows: Use waitress if Gunicorn issues.
-- [ ] Rollback: git checkout HEAD~1.
+### Future Tests (Implement When Requested)
+- Unit tests: Update `tests/test_serve_file.py` to mock config toggle and verify both modes (Nginx X-Accel vs. direct send_file).
+- Integration tests: Run with/without Nginx, download files/folders, check logs/response headers/sizes.
 
-This checklist ensures a smooth migration. Implement in code mode after approval.
+## Architecture Comparison
+```mermaid
+graph TD
+    A[Client Request /files/path] --> B{Config: use_pure_flask?}
+    B -->|true| C[Flask send_file: Stream from serveFolder]
+    C --> D[Direct Response to Client]
+    B -->|false| E[Flask: Check Nginx → X-Accel-Redirect Header]
+    E --> F[Nginx: sendfile from serveFolder]
+    F --> D
+    G[config.yaml: use_pure_flask=true/false] --> B
+    style C fill:#90EE90
+    style F fill:#FFB6C1
+```
+
+This revised plan ensures deterministic mode selection via config, minimal code changes (if-else wrappers), and no automatic fallbacks. Current Nginx functionality remains intact when `use_pure_flask: false`.

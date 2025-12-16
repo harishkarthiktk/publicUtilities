@@ -69,7 +69,7 @@ pip install -r requirements.txt
 
 3. Run the app:
 ```bash
-python -m app
+python app.py
 ```
 Then open [http://localhost:8000](http://localhost:8000) in your browser. You'll be prompted for username/password.
 
@@ -85,14 +85,14 @@ Edit these in `app.py` if needed, or use environment variables:
 
 | Variable                  | Purpose                                      | Default                  |
 |---------------------------|----------------------------------------------|--------------------------|
-| `SERVE_FOLDER`            | Root directory to serve files from           | `data`                   |
+| `SERVE_FOLDER`            | Root directory to serve files from           | `serveFolder`            |
 | `UPLOAD_FOLDER`           | Where uploads get stored                     | Same as `SERVE_FOLDER`   |
-| `TEMP_DIR`                | Folder used to store temp zips               | `temp`                   |
+| `TEMP_DIR`                | Folder used to store temp zips               | `temp_zips`              |
 | `BASIC_AUTH_USER`         | Username for Basic Auth                      | `admin`                  |
 | `BASIC_AUTH_PASSWORD`     | Password for Basic Auth (rotate regularly)   | `password`               |
 | `port` (in `app.run()`)   | Port number (default `8000`)                 | `8000`                   |
 | `host` (in `app.run()`)   | Set to `0.0.0.0` to allow LAN access         | `127.0.0.1`              |
-| `BASIC_AUTH_USERS_FILE`   | Path to YAML file for multiple users (optional) | `config/users.yaml`      |
+| `BASIC_AUTH_USERS_FILE`   | Path to YAML file for multiple users (optional) | `users.yaml`             |
 
 **Credential Rotation Plan**:
 - Update `BASIC_AUTH_PASSWORD` in your `.env` file or environment.
@@ -154,16 +154,3 @@ All endpoints require Basic Auth. Use `-u user:pass` with curl or equivalent.
 - Always use HTTPS in production (e.g., via reverse proxy like Nginx/Apache)
 - Authentication logs failed/successful attempts to `logs/app.log`
 - Avoid exposing it directly to the internet without additional hardening (e.g., rate limiting, IP whitelisting)
-
-## Project Structure (Post-Reorganization)
-- **Root**: README.md, roadmap.md, .gitignore, requirements.txt
-- **app/**: Flask code (app.py, core_auth.py, routes.py, utils.py, __init__.py)
-- **config/**: config.yaml, users.yaml
-- **deployment/**: start_gunicorn.sh, nginx/
-- **data/**: Served files (previously serveFolder/)
-- **temp/**: Temporary zips
-- **static/**, **templates/**, **docs/**, **tests/**: Standard Flask/project dirs
-
-To run:
-- Development: `python -m app` (from root)
-- Production: `cd deployment && ./start_gunicorn.sh`
