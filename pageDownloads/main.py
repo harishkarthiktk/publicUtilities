@@ -1,7 +1,6 @@
 import os
 import argparse
 import logging
-from urllib.parse import urlparse
 import html2text
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -18,6 +17,7 @@ logging.basicConfig(
     ]
 )
 
+
 def get_webdriver():
     """Initialize headless Selenium WebDriver."""
     options = Options()
@@ -30,6 +30,7 @@ def get_webdriver():
         logging.error(f"Error initializing WebDriver: {e}")
         return None
 
+
 def fetch_page(driver, url):
     """Load a webpage and return its source HTML."""
     try:
@@ -40,10 +41,17 @@ def fetch_page(driver, url):
         logging.error(f"Error loading {url}: {e}")
         return None
 
+
 def url_to_filename(url):
     """Convert a URL into a safe filename."""
-    filename = url.replace('://', '_').replace('/', '_').replace(':', '').replace('?', '_').replace('&', '_').replace('=', '_')
+    filename = (url.replace('://', '_')
+                .replace('/', '_')
+                .replace(':', '')
+                .replace('?', '_')
+                .replace('&', '_')
+                .replace('=', '_'))
     return f"{filename}.md"
+
 
 def sanitize_filename(title):
     """Sanitize a title to a safe filename base."""
@@ -58,6 +66,7 @@ def sanitize_filename(title):
     title = title.rstrip('_')
     return title
 
+
 def save_content_to_file(content, filename, output_folder):
     """Save Markdown content to a file in the specified output folder."""
     os.makedirs(output_folder, exist_ok=True)
@@ -69,6 +78,7 @@ def save_content_to_file(content, filename, output_folder):
     except Exception as e:
         logging.error(f"Failed to write {filepath}: {e}")
 
+
 def process_url(driver, url, output_folder, use_title=False):
     """Fetch a page, convert to Markdown, and save."""
     try:
@@ -79,10 +89,16 @@ def process_url(driver, url, output_folder, use_title=False):
                 title = driver.title.strip()
                 if title:
                     filename = sanitize_filename(title) + '.md'
-                    logging.info(f"Using title-based filename for {url}: {filename}")
+                    logging.info(
+                        f"Using title-based filename "
+                        f"for {url}: {filename}"
+                    )
                 else:
                     filename = url_to_filename(url)
-                    logging.warning(f"Empty title for {url}, falling back to URL-based filename")
+                    logging.warning(
+                        f"Empty title for {url}, "
+                        f"falling back to URL-based filename"
+                    )
             else:
                 filename = url_to_filename(url)
             save_content_to_file(md_content, filename, output_folder)
@@ -90,6 +106,7 @@ def process_url(driver, url, output_folder, use_title=False):
             logging.warning(f"Skipping saving for {url} due to fetch failure.")
     except Exception as e:
         logging.exception(f"Exception while processing {url}: {e}")
+
 
 def read_urls_from_file(file_path):
     """Read URLs from a text file."""
@@ -105,13 +122,34 @@ def read_urls_from_file(file_path):
         logging.error(f"Error reading URL file {file_path}: {e}")
         return []
 
+
 def main():
-    parser = argparse.ArgumentParser(description='Render pages from URLs and save their content.')
+    parser = argparse.ArgumentParser(
+        description='Render pages from URLs and save their content.'
+    )
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument('-f', '--file', help='Path to a text file with URLs, one per line.')
-    group.add_argument('-u', '--url', help='A single URL to process.')
-    parser.add_argument('-o', '--output-folder', default='outputs', help='Folder to save the output files.')
-    parser.add_argument('-t', '--title', action='store_true', help='Use webpage title for output filename instead of URL.')
+    group.add_argument(
+        '-f',
+        '--file',
+        help='Path to a text file with URLs, one per line.'
+    )
+    group.add_argument(
+        '-u',
+        '--url',
+        help='A single URL to process.'
+    )
+    parser.add_argument(
+        '-o',
+        '--output-folder',
+        default='outputs',
+        help='Folder to save the output files.'
+    )
+    parser.add_argument(
+        '-t',
+        '--title',
+        action='store_true',
+        help='Use webpage title for output filename instead of URL.'
+    )
     args = parser.parse_args()
 
     # Prepare list of URLs
@@ -141,6 +179,7 @@ def main():
                 logging.exception(f"Error processing {url}")
     finally:
         driver.quit()
+
 
 if __name__ == "__main__":
     main()

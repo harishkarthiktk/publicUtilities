@@ -200,7 +200,7 @@ def find_pdfs(path: Path, max_depth: int = 3) -> Generator[Path, None, None]:
     """
     depth = 0
     for root, dirs, files in os.walk(path):
-        rel_path = path.resolve().relative_to(root.resolve()) if path.resolve() != root.resolve() else Path('.')
+        rel_path = Path(root).resolve().relative_to(path.resolve()) if path.resolve() != Path(root).resolve() else Path('.')
         current_depth = len(rel_path.parts) if rel_path != Path('.') else 0
         if current_depth > max_depth:
             dirs[:] = []  # Prune deeper directories
