@@ -41,3 +41,7 @@ podman run -d \
   docker.io/postgres:17
 
 podman run -d --name postgres -e POSTGRES_PASSWORD=mysecret -p 5432:5432 -v postgres_data:/var/lib/postgresql/data docker.io/postgres:17
+
+# Excalidraw
+podman run --rm -dit --name excalidraw -p 5000:80 excalidraw/excalidraw:latest
+
