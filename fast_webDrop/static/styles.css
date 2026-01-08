@@ -1,0 +1,372 @@
+:root {
+  --background: oklch(0.97 0.02 225.66);
+  --foreground: oklch(0.15 0.02 269.18);
+  --card: oklch(0.98 0.01 228.79);
+  --card-foreground: oklch(0.15 0.02 269.18);
+  --primary: oklch(0.71 0.15 239.15);
+  --primary-foreground: oklch(0.94 0.03 232.39);
+  --secondary: oklch(0.91 0.03 229.20);
+  --secondary-foreground: oklch(0.15 0.02 269.18);
+  --destructive: oklch(0.61 0.24 20.96);
+  --border: oklch(0.82 0.02 240.77);
+  --input: oklch(0.82 0.02 240.77);
+
+  --font-sans: 'Source Code Pro', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --radius: 0.5rem;
+
+  --shadow-sm: 0px 1px 2.5px 0px oklch(0.49 0.09 235.00 / 0.06), 0px 1px 2px -1px oklch(0.49 0.09 235.00 / 0.06);
+}
+
+.dark {
+  --background: oklch(0.18 0.02 271.27);
+  --foreground: oklch(0.90 0.01 238.47);
+  --card: oklch(0.22 0.02 271.67);
+  --card-foreground: oklch(0.90 0.01 238.47);
+  --primary: oklch(0.71 0.15 239.15);
+  --primary-foreground: oklch(0.94 0.03 232.39);
+  --secondary: oklch(0.28 0.03 270.91);
+  --secondary-foreground: oklch(0.90 0.01 238.47);
+  --destructive: oklch(0.64 0.25 19.69);
+  --border: oklch(0.90 0.01 238.47 / 15%);
+  --input: oklch(0.90 0.01 238.47 / 20%);
+
+  --shadow-sm: 0px 1px 2px 0px oklch(0 0 0 / 0.01), 0px 1px 2px -1px oklch(0 0 0 / 0.01);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 16px;
+    background-color: var(--background);
+    color: var(--foreground);
+}
+
+#top-section {
+    height: 100vh;
+    padding: 70px 20px 20px;
+    overflow-y: auto;
+    background-color: var(--background);
+}
+
+#link-list {
+    list-style: decimal;
+    /* padding-left: 20px; */
+}
+
+#link-list li {
+    margin: 10px 0;
+    padding: 15px;
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    line-height: 1.6;
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+}
+
+#link-list a {
+    color: var(--primary);
+    text-decoration: none;
+    word-break: break-all;
+}
+
+#link-list a:hover {
+    text-decoration: underline;
+    color: var(--primary-foreground);
+}
+
+.delete-btn {
+    background: var(--destructive);
+    color: var(--primary-foreground);
+    border: none;
+    min-width: 70px;
+    min-height: 44px;
+    padding: 10px 15px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px;
+    margin-left: auto;
+    flex-shrink: 0;
+    box-shadow: var(--shadow-sm);
+}
+
+.delete-btn:hover {
+    background: color-mix(in srgb, var(--destructive) 80%, black);
+}
+
+#drop-zone {
+    border: 2px dashed var(--border);
+    padding: 20px 20px 20px 35px;
+    margin-bottom: 20px;
+    text-align: left;
+    background: var(--secondary);
+    border-radius: var(--radius);
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    color: var(--secondary-foreground);
+    box-shadow: var(--shadow-sm);
+}
+
+#drop-zone.drag-over {
+    background: var(--primary);
+    border-color: var(--primary-foreground);
+    color: var(--primary-foreground);
+}
+
+#manual-input-section {
+    background: var(--card);
+    padding: 15px;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    box-shadow: var(--shadow-sm);
+}
+
+#manual-input-section input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    background-color: var(--input);
+    color: var(--foreground);
+}
+
+textarea {
+    flex: 1;
+    padding: 12px;
+    font-size: 16px;
+    resize: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    line-height: 1.5;
+    background-color: var(--input);
+    color: var(--foreground);
+}
+
+button {
+    padding: 12px 20px;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 16px;
+    min-height: 44px;
+    box-shadow: var(--shadow-sm);
+}
+
+button:hover {
+    background: color-mix(in srgb, var(--primary) 80%, black);
+    transform: translateY(-1px);
+}
+
+button:active {
+    background: color-mix(in srgb, var(--primary) 90%, black);
+    transform: translateY(0);
+}
+
+/* App header */
+#app-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    z-index: 1000;
+    box-shadow: var(--shadow-sm);
+    height: 60px;
+    box-sizing: border-box;
+}
+
+#app-header h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--foreground);
+    line-height: 1;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Theme toggle button */
+#theme-toggle {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1;
+    box-shadow: var(--shadow-sm);
+    min-height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    flex-shrink: 0;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#theme-toggle:hover {
+    background: color-mix(in srgb, var(--secondary) 80%, black);
+}
+
+/* Dark mode adjustments for header */
+.dark #app-header {
+    background: var(--card);
+    border-bottom-color: var(--border);
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+    }
+    #top-section {
+        height: auto;
+        min-height: 100vh;
+        padding: 70px 15px 15px;
+    }
+    #app-header {
+        padding: 8px 15px;
+        height: 50px;
+    }
+    #app-header h1 {
+        font-size: 1.2rem;
+        line-height: 1;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    #theme-toggle {
+        padding: 6px 10px;
+        font-size: 0.75rem;
+        line-height: 1;
+        white-space: nowrap;
+        max-width: 100px;
+    }
+    #link-list li {
+        padding: 12px;
+        font-size: 15px;
+        gap: 8px;
+    }
+    .delete-btn {
+        min-width: 65px;
+        font-size: 13px;
+    }
+    #drop-zone {
+        padding: 15px 15px 15px 32px;
+        font-size: 14px;
+    }
+    #manual-input-section {
+        padding: 12px;
+    }
+    #manual-input-section input {
+        font-size: 15px;
+        padding: 10px;
+    }
+    button {
+        font-size: 15px;
+        padding: 10px 16px;
+        min-height: 42px;
+    }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+    #app-header {
+        padding: 6px 12px;
+        height: 45px;
+    }
+    #app-header h1 {
+        font-size: 1.1rem;
+        flex-shrink: 0;
+    }
+    #theme-toggle {
+        padding: 4px 8px;
+        font-size: 0.7rem;
+        max-width: 80px;
+    }
+    #top-section {
+        padding: 70px 12px 12px;
+    }
+    /* #link-list {
+        padding-left: 15px;
+    } */
+    #link-list li {
+        padding: 10px;
+        font-size: 14px;
+        gap: 5px;
+    }
+    .delete-btn {
+        min-width: 60px;
+        min-height: 40px;
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+    #drop-zone {
+        padding: 12px 12px 12px 30px;
+        font-size: 13px;
+    }
+    #manual-input-section {
+        padding: 10px;
+    }
+    #manual-input-section input {
+        font-size: 14px;
+        padding: 8px;
+    }
+    button {
+        font-size: 14px;
+        padding: 8px 12px;
+        min-height: 40px;
+    }
+}
+
+/* Very small screens */
+@media (max-width: 480px) {
+    #top-section {
+        padding: 70px 10px 10px;
+    }
+    /* #link-list {
+        padding-left: 15px;
+    } */
+    #link-list li {
+        padding: 10px;
+        font-size: 14px;
+        gap: 5px;
+    }
+    .delete-btn {
+        min-width: 60px;
+        min-height: 40px;
+        font-size: 12px;
+        padding: 8px 10px;
+    }
+}

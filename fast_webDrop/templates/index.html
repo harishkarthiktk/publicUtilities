@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Link Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header id="app-header">
+        <h1>Fast WebDrop</h1>
+        <button id="theme-toggle" type="button" onclick="toggleTheme()">Toggle Theme</button>
+    </header>
+    <div id="top-section">
+        <!-- Manual input section for easier mobile use -->
+        <div id="manual-input-section">
+            <input type="url" id="manual-url-input" placeholder="Paste or type URL here...">
+            <button type="button" onclick="addManualLink()">Add Link</button>
+        </div>
+
+        <div id="drop-zone">
+            Drop links here (desktop)
+        </div>
+        <ol id="link-list">
+            {% for link in links %}
+            <li data-url="{{ link.url }}">
+                <a href="{{ link.url }}" target="_blank">{{ link.url }}</a>
+                <span> | IP: {{ link.get('ip', 'N/A') }}</span>
+                <span> | Time: {{ link.get('timestamp', 'N/A') }}</span>
+                <button type="button" class="delete-btn" onclick="deleteLink('{{ link.url }}')">Delete</button>
+            </li>
+            {% endfor %}
+        </ol>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
