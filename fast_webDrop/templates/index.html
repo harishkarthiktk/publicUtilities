@@ -3,37 +3,130 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Link Manager</title>
+    <title>FastWebDrop - Link Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <header id="app-header">
-        <h1>Fast WebDrop</h1>
-        <button id="theme-toggle" type="button" onclick="toggleTheme()">Toggle Theme</button>
+    <!-- Header -->
+    <header class="app-header">
+        <div class="app-header__brand">
+            <div class="app-header__icon">⚡</div>
+            <span>FastWebDrop</span>
+        </div>
+        <div class="app-header__actions">
+            <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle theme">☀️</button>
+        </div>
     </header>
-    <div id="top-section">
-        <!-- Manual input section for easier mobile use -->
-        <div id="manual-input-section">
-            <input type="url" id="manual-url-input" placeholder="Paste or type URL here...">
-            <button type="button" onclick="addManualLink()">Add Link</button>
-        </div>
 
-        <div id="drop-zone">
-            Drop links here (desktop)
+    <!-- Main content -->
+    <div class="main-container">
+        <div class="content">
+            <!-- Search bar -->
+            <div class="search-container" id="search-container" style="display: none;">
+                <div style="position: relative;">
+                    <span class="search-icon">🔍</span>
+                    <input
+                        type="text"
+                        class="search-bar"
+                        id="search-input"
+                        placeholder="Search links by URL or domain..."
+                        aria-label="Search links"
+                    >
+                </div>
+                <div class="search-result-count" id="result-count"></div>
+            </div>
+
+            <!-- Drop zone -->
+            <div class="drop-zone" id="drop-zone">
+                <div class="drop-zone__content">
+                    <div class="drop-zone__icon">📥</div>
+                    <div class="drop-zone__title">Drop links here</div>
+                    <div class="drop-zone__subtitle">or paste in the box below</div>
+                </div>
+            </div>
+
+            <!-- Manual input section -->
+            <div class="input-section">
+                <div class="input-wrapper">
+                    <label class="input-label" for="manual-url-input">Paste or type URL</label>
+                    <input
+                        type="url"
+                        id="manual-url-input"
+                        class="url-input"
+                        placeholder="https://example.com"
+                        aria-label="Enter URL"
+                    >
+                </div>
+                <button type="button" class="add-button" id="add-button">
+                    <span id="add-button-text">Add Link</span>
+                </button>
+            </div>
+
+            <!-- Empty state -->
+            <div class="empty-state" id="empty-state">
+                <div class="empty-state__icon">📭</div>
+                <h2 class="empty-state__title">No links yet</h2>
+                <p class="empty-state__description">
+                    Start by dropping links here, pasting them below, or using drag-and-drop from your browser.
+                </p>
+                <div class="empty-state__tips">
+                    <div class="empty-state__tips-title">How to add links</div>
+                    <ul class="empty-state__tips-list">
+                        <li>Drag links from your browser tab bar</li>
+                        <li>Paste links in the input field</li>
+                        <li>Drag text/links from any webpage</li>
+                        <li>Type or paste URLs directly</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Link list -->
+            <ol class="link-list" id="link-list">
+                {% for link in links %}
+                <li class="link-item" data-url="{{ link.url }}">
+                    <div class="link-favicon" data-url="{{ link.url }}">🔗</div>
+                    <div class="link-content">
+                        <a href="{{ link.url }}" target="_blank" rel="noopener" class="link-url">{{ link.url }}</a>
+                        <div class="link-domain" data-url="{{ link.url }}"></div>
+                        <div class="link-metadata" id="meta-{{ loop.index0 }}">
+                            <div class="link-meta-item">
+                                <span class="link-meta-label">Added:</span>
+                                {{ link.get('timestamp', 'N/A') }}
+                            </div>
+                            <div class="link-meta-item">
+                                <span class="link-meta-label">IP:</span>
+                                {{ link.get('ip', 'N/A') }}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="link-actions">
+                        <button type="button" class="link-action-btn info" title="More info">ℹ️</button>
+                        <button type="button" class="link-action-btn copy" title="Copy URL">📋</button>
+                        <button type="button" class="link-action-btn delete" title="Delete">🗑️</button>
+                    </div>
+                </li>
+                {% endfor %}
+            </ol>
         </div>
-        <ol id="link-list">
-            {% for link in links %}
-            <li data-url="{{ link.url }}">
-                <a href="{{ link.url }}" target="_blank">{{ link.url }}</a>
-                <span> | IP: {{ link.get('ip', 'N/A') }}</span>
-                <span> | Time: {{ link.get('timestamp', 'N/A') }}</span>
-                <button type="button" class="delete-btn" onclick="deleteLink('{{ link.url }}')">Delete</button>
-            </li>
-            {% endfor %}
-        </ol>
+    </div>
+
+    <!-- Toast container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Confirmation modal -->
+    <div class="modal-overlay" id="modal-overlay">
+        <div class="modal">
+            <h2 class="modal__title">Delete link?</h2>
+            <p class="modal__description">This action cannot be undone.</p>
+            <div class="modal__url" id="modal-url"></div>
+            <div class="modal__actions">
+                <button type="button" class="modal__button modal__button--cancel" id="cancel-button">Cancel</button>
+                <button type="button" class="modal__button modal__button--confirm" id="confirm-delete">Delete</button>
+            </div>
+        </div>
     </div>
 
     <script src="/static/script.js"></script>
