@@ -17,6 +17,19 @@
             <span>FastWebDrop</span>
         </div>
         <div class="app-header__actions">
+            <select id="sort-select" class="sort-select">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="alpha">A-Z</option>
+                <option value="domain">By Domain</option>
+            </select>
+            <div class="export-import-section">
+                <button id="export-json" class="export-btn" title="Export JSON">📄</button>
+                <button id="export-csv" class="export-btn" title="Export CSV">📊</button>
+                <button id="export-html" class="export-btn" title="Export HTML">🌐</button>
+                <input type="file" id="import-file" accept=".json,.csv" style="display: none;">
+                <button id="import-btn" class="import-btn" title="Import file">📥</button>
+            </div>
             <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle theme">☀️</button>
         </div>
     </header>

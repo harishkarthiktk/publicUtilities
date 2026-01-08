@@ -45,6 +45,15 @@
     --error: oklch(0.64 0.25 19.69);
     --input-bg: oklch(0.22 0.02 271.67);
 
+    /* Tag colors for dark */
+    --tag-work: oklch(0.3 0.12 240);
+    --tag-personal: oklch(0.3 0.12 120);
+    --tag-reference: oklch(0.3 0.12 60);
+    --tag-design: oklch(0.3 0.12 300);
+    --tag-research: oklch(0.3 0.12 200);
+    --tag-social: oklch(0.3 0.12 0);
+    --tag-tools: oklch(0.3 0.12 180);
+
     --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.2);
     --shadow-md: 0 4px 6px oklch(0 0 0 / 0.25);
     --shadow-lg: 0 10px 15px oklch(0 0 0 / 0.3);
@@ -116,7 +125,54 @@ body {
 
 .app-header__actions {
     display: flex;
+    align-items: center;
     gap: var(--spacing-md);
+}
+
+.sort-select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    min-width: 120px;
+    transition: all 0.2s ease;
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px oklch(from var(--accent-primary) l c h / 0.1);
+}
+
+.export-import-section {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.export-btn, .import-btn {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+    color: var(--text-primary);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.export-btn:hover, .import-btn:hover {
+    background: var(--accent-secondary);
+    border-color: var(--accent-primary);
+    transform: scale(1.05);
 }
 
 .theme-toggle {
@@ -197,6 +253,7 @@ body {
     font-size: 0.875rem;
     color: var(--text-secondary);
 }
+
 
 /* Empty state */
 .empty-state {
@@ -395,6 +452,7 @@ body {
     gap: var(--spacing-sm);
     font-family: var(--font-body);
     box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
 }
 
 .add-button:hover {
@@ -755,12 +813,36 @@ body {
         font-size: 1.2rem;
     }
 
+    .app-header__actions {
+        gap: var(--spacing-sm);
+    }
+
+    .sort-select {
+        min-width: 100px;
+        font-size: 0.8rem;
+    }
+
+    .export-import-section {
+        gap: var(--spacing-xs);
+    }
+
+    .export-btn, .import-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
     .content {
         padding: var(--spacing-lg);
     }
 
     .input-section {
         flex-direction: column;
+    }
+
+    .input-wrapper {
+        min-width: auto;
+        max-width: none;
     }
 
     .link-item {
@@ -815,5 +897,14 @@ body {
 
     .drop-zone__icon {
         font-size: 2rem;
+    }
+
+    .input-section {
+        gap: var(--spacing-sm);
+    }
+
+    .export-import-section {
+        flex-direction: column;
+        gap: var(--spacing-xs);
     }
 }

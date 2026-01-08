@@ -13,6 +13,12 @@ const cancelButton = document.getElementById('cancel-button');
 const confirmDelete = document.getElementById('confirm-delete');
 const resultCount = document.getElementById('result-count');
 const modalUrl = document.getElementById('modal-url');
+const sortSelect = document.getElementById('sort-select');
+const exportJsonBtn = document.getElementById('export-json');
+const exportCsvBtn = document.getElementById('export-csv');
+const exportHtmlBtn = document.getElementById('export-html');
+const importBtn = document.getElementById('import-btn');
+const importFile = document.getElementById('import-file');
 
 // State
 let allLinks = [];
@@ -98,15 +104,53 @@ function showToast(message, type = 'success') {
 }
 
 /**
+ * Apply filters and sort
+ */
+function applyFiltersAndSort() {
+    let temp = [...allLinks];
+
+    // Search filter
+    const searchQuery = searchInput.value.toLowerCase().trim();
+    if (searchQuery) {
+        temp = temp.filter(link =>
+            link.url.toLowerCase().includes(searchQuery) ||
+            formatUrl(link.url).toLowerCase().includes(searchQuery)
+        );
+    }
+
+    // Sort
+    const sortType = sortSelect.value;
+    temp.sort((a, b) => {
+        if (sortType === 'newest') {
+            return new Date(b.timestamp) - new Date(a.timestamp);
+        } else if (sortType === 'oldest') {
+            return new Date(a.timestamp) - new Date(b.timestamp);
+        } else if (sortType === 'alpha') {
+            return a.url.localeCompare(b.url);
+        } else if (sortType === 'domain') {
+            const da = formatUrl(a.url).toLowerCase();
+            const db = formatUrl(b.url).toLowerCase();
+            return da.localeCompare(db);
+        }
+        return 0;
+    });
+
+    filteredLinks = temp;
+    renderLinks();
+    updateUI();
+}
+
+/**
  * Update UI state based on links
  */
 function updateUI() {
     const hasLinks = filteredLinks.length > 0;
     emptyState.style.display = hasLinks ? 'none' : 'block';
-    searchContainer.style.display = hasLinks || allLinks.length > 0 ? 'block' : 'none';
+    searchContainer.style.display = allLinks.length > 0 ? 'block' : 'none';
 
     // Update result count if searching
-    if (searchInput.value.trim()) {
+    const searchQuery = searchInput.value.trim();
+    if (searchQuery) {
         resultCount.textContent = `${filteredLinks.length} link${filteredLinks.length !== 1 ? 's' : ''} found`;
     } else {
         resultCount.textContent = '';
@@ -145,8 +189,6 @@ function loadLinksFromTemplate() {
     });
 
     filteredLinks = [...allLinks];
-    renderLinks();
-    updateUI();
 }
 
 /**
@@ -164,28 +206,52 @@ function renderLinks() {
         const domain = formatUrl(link.url);
         const metaId = `meta-${index}`;
 
-        li.innerHTML = `
-            <div class="link-favicon" data-url="${link.url}">${emoji}</div>
-            <div class="link-content">
-                <a href="${link.url}" target="_blank" rel="noopener" class="link-url">${link.url}</a>
-                <div class="link-domain">${domain}</div>
-                <div class="link-metadata" id="${metaId}">
-                    <div class="link-meta-item">
-                        <span class="link-meta-label">Added:</span>
-                        ${link.timestamp}
-                    </div>
-                    <div class="link-meta-item">
-                        <span class="link-meta-label">IP:</span>
-                        ${link.ip}
-                    </div>
-                </div>
+        const linkContent = document.createElement('div');
+        linkContent.className = 'link-content';
+
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        a.className = 'link-url';
+        a.textContent = link.url;
+        linkContent.appendChild(a);
+
+        const domainDiv = document.createElement('div');
+        domainDiv.className = 'link-domain';
+        domainDiv.textContent = domain;
+        linkContent.appendChild(domainDiv);
+
+        // Metadata
+        const metadata = document.createElement('div');
+        metadata.className = 'link-metadata';
+        metadata.id = metaId;
+        metadata.innerHTML = `
+            <div class="link-meta-item">
+                <span class="link-meta-label">Added:</span>
+                ${link.timestamp}
             </div>
-            <div class="link-actions">
-                <button type="button" class="link-action-btn info" data-action="info" title="More info">ℹ️</button>
-                <button type="button" class="link-action-btn copy" data-action="copy" title="Copy URL">📋</button>
-                <button type="button" class="link-action-btn delete" data-action="delete" data-url="${link.url}" title="Delete">🗑️</button>
+            <div class="link-meta-item">
+                <span class="link-meta-label">IP:</span>
+                ${link.ip}
             </div>
         `;
+        linkContent.appendChild(metadata);
+
+        li.appendChild(document.createElement('div')).className = 'link-favicon';
+        li.querySelector('.link-favicon').setAttribute('data-url', link.url);
+        li.querySelector('.link-favicon').textContent = emoji;
+
+        li.appendChild(linkContent);
+
+        const actions = document.createElement('div');
+        actions.className = 'link-actions';
+        actions.innerHTML = `
+            <button type="button" class="link-action-btn info" data-action="info" title="More info">ℹ️</button>
+            <button type="button" class="link-action-btn copy" data-action="copy" title="Copy URL">📋</button>
+            <button type="button" class="link-action-btn delete" data-action="delete" data-url="${link.url}" title="Delete">🗑️</button>
+        `;
+        li.appendChild(actions);
 
         linkList.appendChild(li);
     });
@@ -255,13 +321,21 @@ async function addLink() {
         return;
     }
 
-    // Validate URL format
+    // Add protocol if missing
     let validUrl = url;
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
         validUrl = 'https://' + url;
     }
 
-    // Check for duplicates
+    // Validate URL
+    try {
+        new URL(validUrl);
+    } catch {
+        showToast('Invalid URL format', 'error');
+        return;
+    }
+
+    // Check for duplicates locally
     const isDuplicate = allLinks.some(link => link.url === validUrl);
     if (isDuplicate) {
         showToast('This link already exists', 'error');
@@ -281,7 +355,9 @@ async function addLink() {
             body: JSON.stringify({ url: validUrl })
         });
 
-        if (response.ok) {
+        const data = await response.json();
+
+        if (data.status === 'success') {
             showToast('Link added successfully!', 'success');
             urlInput.value = '';
             urlInput.focus();
@@ -290,9 +366,9 @@ async function addLink() {
             const now = new Date().toISOString();
             const newLink = { url: validUrl, timestamp: now, ip: 'You' };
             allLinks.unshift(newLink);
-            filteredLinks = [...allLinks];
-            renderLinks();
-            updateUI();
+            applyFiltersAndSort();
+        } else if (data.status === 'duplicate') {
+            showToast('This link already exists', 'error');
         } else {
             showToast('Failed to add link', 'error');
         }
@@ -323,15 +399,36 @@ async function deleteLink(url) {
 
             // Remove from local list
             allLinks = allLinks.filter(link => link.url !== url);
-            filteredLinks = filteredLinks.filter(link => link.url !== url);
-            renderLinks();
-            updateUI();
+            applyFiltersAndSort();
         } else {
             showToast('Failed to delete link', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
         showToast('Error: ' + error.message, 'error');
+    }
+}
+
+/**
+ * Export data
+ */
+async function exportData(type) {
+    try {
+        const response = await fetch(`/export-${type}`);
+        if (!response.ok) throw new Error('Export failed');
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `links.${type}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast(`Exported as ${type.toUpperCase()}`, 'success');
+    } catch (error) {
+        console.error('Export error:', error);
+        showToast('Export failed', 'error');
     }
 }
 
@@ -347,21 +444,47 @@ urlInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Search/filter
-searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim();
+// Search input
+searchInput.addEventListener('input', applyFiltersAndSort);
 
-    if (query === '') {
-        filteredLinks = [...allLinks];
-    } else {
-        filteredLinks = allLinks.filter(link =>
-            link.url.toLowerCase().includes(query) ||
-            formatUrl(link.url).toLowerCase().includes(query)
-        );
+// Sort change
+sortSelect.addEventListener('change', () => {
+    localStorage.setItem('sort', sortSelect.value);
+    applyFiltersAndSort();
+});
+
+// Export buttons
+exportJsonBtn.addEventListener('click', () => exportData('json'));
+exportCsvBtn.addEventListener('click', () => exportData('csv'));
+exportHtmlBtn.addEventListener('click', () => exportData('html'));
+
+// Import
+importBtn.addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/import-links', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            showToast(`Imported ${data.added || 0} links`, 'success');
+            // Reload to fetch new links
+            location.reload();
+        } else {
+            showToast(data.message || 'Import failed', 'error');
+        }
+    } catch (error) {
+        console.error('Import error:', error);
+        showToast('Import error', 'error');
     }
-
-    renderLinks();
-    updateUI();
+    e.target.value = '';
 });
 
 // Modal cancel
@@ -424,6 +547,9 @@ dropZone.addEventListener('drop', async (e) => {
 function init() {
     loadTheme();
     loadLinksFromTemplate();
+    const savedSort = localStorage.getItem('sort') || 'newest';
+    sortSelect.value = savedSort;
+    applyFiltersAndSort();
 }
 
 // Initialize when DOM is ready
