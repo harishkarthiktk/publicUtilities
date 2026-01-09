@@ -359,13 +359,30 @@ function attachLinkEventHandlers() {
 }
 
 /**
- * Change link category and re-render
+ * Change link category and persist to backend
  */
-function changeLinkCategory(url, newCategory) {
-    const link = allLinks.find(l => l.url === url);
-    if (link) {
-        link.category = newCategory;
-        applyFiltersAndSort();
+async function changeLinkCategory(url, newCategory) {
+    try {
+        const response = await fetch('/update-category', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, category: newCategory })
+        });
+
+        if (response.ok) {
+            // Update local state after successful API call
+            const link = allLinks.find(l => l.url === url);
+            if (link) {
+                link.category = newCategory;
+                applyFiltersAndSort();
+            }
+            showToast(`Moved to ${newCategory}`, 'success');
+        } else {
+            showToast('Failed to update category', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating category:', error);
+        showToast('Error: ' + error.message, 'error');
     }
 }
 

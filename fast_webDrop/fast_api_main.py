@@ -32,6 +32,10 @@ class Link(BaseModel):
 class DeleteLink(BaseModel):
     url: str
 
+class UpdateCategory(BaseModel):
+    url: str
+    category: str
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     links = load_links()
@@ -56,6 +60,16 @@ async def add_link(request: Request, link: Link):
 async def delete_link(link: DeleteLink):
     links = load_links()
     links = [l for l in links if l["url"] != link.url]
+    save_links(links)
+    return {"status": "success"}
+
+@app.post("/update-category")
+async def update_category(data: UpdateCategory):
+    links = load_links()
+    for link in links:
+        if link["url"] == data.url:
+            link["category"] = data.category
+            break
     save_links(links)
     return {"status": "success"}
 
