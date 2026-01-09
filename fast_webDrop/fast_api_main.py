@@ -48,7 +48,7 @@ async def add_link(request: Request, link: Link):
     # Check for duplicate
     if any(l["url"] == link.url for l in links):
         return {"status": "duplicate"}
-    links.append({"url": link.url, "ip": client_ip, "timestamp": timestamp})
+    links.append({"url": link.url, "ip": client_ip, "timestamp": timestamp, "category": "working"})
     save_links(links)
     return {"status": "success"}
 
@@ -70,9 +70,9 @@ async def export_csv():
     links = load_links()
     output = StringIO()
     writer = csv.writer(output)
-    writer.writerow(["url", "timestamp", "ip"])
+    writer.writerow(["url", "timestamp", "ip", "category"])
     for link in links:
-        writer.writerow([link["url"], link["timestamp"], link["ip"]])
+        writer.writerow([link["url"], link["timestamp"], link["ip"], link.get("category", "working")])
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=links.csv"})
 
 @app.get("/export-html")
@@ -111,6 +111,7 @@ async def import_links(file: UploadFile = File(...)):
                 if "url" in nl and nl["url"] not in [l["url"] for l in links]:
                     nl["timestamp"] = nl.get("timestamp", datetime.now().isoformat())
                     nl["ip"] = nl.get("ip", "imported")
+                    nl["category"] = nl.get("category", "working")
                     links.append(nl)
                     added += 1
         elif file.filename.endswith('.csv'):
@@ -120,7 +121,8 @@ async def import_links(file: UploadFile = File(...)):
                 if url and url not in [l["url"] for l in links]:
                     timestamp = row.get("timestamp", datetime.now().isoformat())
                     ip = row.get("ip", "imported")
-                    links.append({"url": url, "timestamp": timestamp, "ip": ip})
+                    category = row.get("category", "working")
+                    links.append({"url": url, "timestamp": timestamp, "ip": ip, "category": category})
                     added += 1
         else:
             return {"status": "error", "message": "Unsupported file format. Use JSON or CSV."}

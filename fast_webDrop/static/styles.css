@@ -656,6 +656,78 @@ body {
     }
 }
 
+/* Kanban board */
+.kanban-board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.kanban-column {
+    display: flex;
+    flex-direction: column;
+    min-height: 500px;
+}
+
+.kanban-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-md);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.kanban-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.kanban-count {
+    background: var(--accent-primary);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-width: 28px;
+    text-align: center;
+}
+
+.kanban-column .link-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.link-category-select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-top: var(--spacing-sm);
+}
+
+.link-category-select:hover {
+    border-color: var(--accent-primary);
+}
+
+.link-category-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px oklch(from var(--accent-primary) l c h / 0.1);
+}
+
 /* Toast notifications */
 .toast-container {
     position: fixed;
@@ -887,6 +959,15 @@ body {
         gap: clamp(var(--spacing-sm), 2vw, var(--spacing-md));
     }
 
+    .kanban-board {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-md);
+    }
+
+    .kanban-column {
+        min-height: 300px;
+    }
+
     .input-wrapper {
         min-width: auto;
         max-width: none;
@@ -981,5 +1062,18 @@ body {
     .export-import-section {
         flex-direction: column;
         gap: var(--spacing-xs);
+    }
+
+    .kanban-board {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-sm);
+    }
+
+    .kanban-column {
+        min-height: 250px;
+    }
+
+    .link-item {
+        flex-direction: column;
     }
 }

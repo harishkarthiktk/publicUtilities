@@ -101,33 +101,30 @@
                 </div>
             </div>
 
-            <!-- Link list -->
-            <ol class="link-list" id="link-list">
-                {% for link in links %}
-                <li class="link-item" data-url="{{ link.url }}">
-                    <div class="link-favicon" data-url="{{ link.url }}">🔗</div>
-                    <div class="link-content">
-                        <a href="{{ link.url }}" target="_blank" rel="noopener" class="link-url">{{ link.url }}</a>
-                        <div class="link-domain" data-url="{{ link.url }}"></div>
-                        <div class="link-metadata" id="meta-{{ loop.index0 }}">
-                            <div class="link-meta-item">
-                                <span class="link-meta-label">Added:</span>
-                                {{ link.get('timestamp', 'N/A') }}
-                            </div>
-                            <div class="link-meta-item">
-                                <span class="link-meta-label">IP:</span>
-                                {{ link.get('ip', 'N/A') }}
-                            </div>
-                        </div>
+            <!-- Kanban board -->
+            <div class="kanban-board">
+                <div class="kanban-column" data-category="working">
+                    <div class="kanban-header">
+                        <h3 class="kanban-title">Working</h3>
+                        <span class="kanban-count">0</span>
                     </div>
-                    <div class="link-actions">
-                        <button type="button" class="link-action-btn info" title="More info">ℹ️</button>
-                        <button type="button" class="link-action-btn copy" title="Copy URL">📋</button>
-                        <button type="button" class="link-action-btn delete" title="Delete">🗑️</button>
+                    <ol class="link-list" id="link-list-working"></ol>
+                </div>
+                <div class="kanban-column" data-category="archived">
+                    <div class="kanban-header">
+                        <h3 class="kanban-title">Archived</h3>
+                        <span class="kanban-count">0</span>
                     </div>
-                </li>
-                {% endfor %}
-            </ol>
+                    <ol class="link-list" id="link-list-archived"></ol>
+                </div>
+                <div class="kanban-column" data-category="temporary">
+                    <div class="kanban-header">
+                        <h3 class="kanban-title">Temporary</h3>
+                        <span class="kanban-count">0</span>
+                    </div>
+                    <ol class="link-list" id="link-list-temporary"></ol>
+                </div>
+            </div>
         </div>
     </div>
 

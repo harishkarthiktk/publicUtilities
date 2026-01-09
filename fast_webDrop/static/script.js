@@ -1,6 +1,8 @@
 // DOM Elements
 const dropZone = document.getElementById('drop-zone');
-const linkList = document.getElementById('link-list');
+const linkListWorking = document.getElementById('link-list-working');
+const linkListArchived = document.getElementById('link-list-archived');
+const linkListTemporary = document.getElementById('link-list-temporary');
 const urlInput = document.getElementById('manual-url-input');
 const addButton = document.getElementById('add-button');
 const themeToggle = document.getElementById('theme-toggle');
@@ -157,153 +159,218 @@ function updateUI() {
 // === Data Loading ===
 
 /**
- * Parse links from existing template
+ * Initialize empty links array (template no longer renders items)
  */
 function loadLinksFromTemplate() {
-    const items = document.querySelectorAll('ol#link-list > li.link-item');
     allLinks = [];
-
-    items.forEach((item) => {
-        const url = item.getAttribute('data-url');
-        const metadataItems = item.querySelectorAll('.link-meta-item');
-        let timestamp = 'N/A';
-        let ip = 'N/A';
-
-        metadataItems.forEach(meta => {
-            const label = meta.querySelector('.link-meta-label')?.textContent || '';
-            const content = meta.textContent.replace(label, '').trim();
-
-            if (label.includes('Added')) {
-                timestamp = content;
-            } else if (label.includes('IP')) {
-                ip = content;
-            }
-        });
-
-        if (url) {
-            allLinks.push({ url, timestamp, ip });
-        }
-    });
-
-    filteredLinks = [...allLinks];
+    filteredLinks = [];
 }
 
 /**
- * Render links to DOM
+ * Render links to kanban board (grouped by category)
  */
 function renderLinks() {
-    linkList.innerHTML = '';
+    // Clear all lists
+    linkListWorking.innerHTML = '';
+    linkListArchived.innerHTML = '';
+    linkListTemporary.innerHTML = '';
 
-    filteredLinks.forEach((link, index) => {
-        const li = document.createElement('li');
-        li.className = 'link-item';
-        li.setAttribute('data-url', link.url);
+    // Group links by category
+    const byCategory = {
+        working: [],
+        archived: [],
+        temporary: []
+    };
 
-        const emoji = getDomainEmoji(link.url);
-        const domain = formatUrl(link.url);
-        const metaId = `meta-${index}`;
+    filteredLinks.forEach(link => {
+        const category = link.category || 'working';
+        if (byCategory[category]) {
+            byCategory[category].push(link);
+        }
+    });
 
-        const linkContent = document.createElement('div');
-        linkContent.className = 'link-content';
+    // Render each category
+    const categories = [
+        { key: 'working', list: linkListWorking },
+        { key: 'archived', list: linkListArchived },
+        { key: 'temporary', list: linkListTemporary }
+    ];
 
-        const a = document.createElement('a');
-        a.href = link.url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        a.className = 'link-url';
-        a.textContent = link.url;
-        linkContent.appendChild(a);
+    categories.forEach(({ key, list }) => {
+        const links = byCategory[key];
 
-        const domainDiv = document.createElement('div');
-        domainDiv.className = 'link-domain';
-        domainDiv.textContent = domain;
-        linkContent.appendChild(domainDiv);
+        links.forEach((link, index) => {
+            const li = createLinkItem(link, index);
+            list.appendChild(li);
+        });
 
-        // Metadata
-        const metadata = document.createElement('div');
-        metadata.className = 'link-metadata';
-        metadata.id = metaId;
-        metadata.innerHTML = `
-            <div class="link-meta-item">
-                <span class="link-meta-label">Added:</span>
-                ${link.timestamp}
-            </div>
-            <div class="link-meta-item">
-                <span class="link-meta-label">IP:</span>
-                ${link.ip}
-            </div>
-        `;
-        linkContent.appendChild(metadata);
-
-        li.appendChild(document.createElement('div')).className = 'link-favicon';
-        li.querySelector('.link-favicon').setAttribute('data-url', link.url);
-        li.querySelector('.link-favicon').textContent = emoji;
-
-        li.appendChild(linkContent);
-
-        const actions = document.createElement('div');
-        actions.className = 'link-actions';
-        actions.innerHTML = `
-            <button type="button" class="link-action-btn info" data-action="info" title="More info">ℹ️</button>
-            <button type="button" class="link-action-btn copy" data-action="copy" title="Copy URL">📋</button>
-            <button type="button" class="link-action-btn delete" data-action="delete" data-url="${link.url}" title="Delete">🗑️</button>
-        `;
-        li.appendChild(actions);
-
-        linkList.appendChild(li);
+        // Update count
+        const column = document.querySelector(`[data-category="${key}"]`);
+        if (column) {
+            column.querySelector('.kanban-count').textContent = links.length;
+        }
     });
 
     attachLinkEventHandlers();
 }
 
 /**
- * Attach event handlers to link items
+ * Create a single link item element with category selector
+ */
+function createLinkItem(link, index) {
+    const li = document.createElement('li');
+    li.className = 'link-item';
+    li.setAttribute('data-url', link.url);
+
+    const emoji = getDomainEmoji(link.url);
+    const domain = formatUrl(link.url);
+    const metaId = `meta-${link.url.replace(/[^a-z0-9]/gi, '')}`;
+
+    const linkContent = document.createElement('div');
+    linkContent.className = 'link-content';
+
+    const a = document.createElement('a');
+    a.href = link.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.className = 'link-url';
+    a.textContent = link.url;
+    linkContent.appendChild(a);
+
+    const domainDiv = document.createElement('div');
+    domainDiv.className = 'link-domain';
+    domainDiv.textContent = domain;
+    linkContent.appendChild(domainDiv);
+
+    // Category selector
+    const categorySelector = document.createElement('select');
+    categorySelector.className = 'link-category-select';
+    categorySelector.setAttribute('data-url', link.url);
+    categorySelector.innerHTML = `
+        <option value="working" ${link.category === 'working' ? 'selected' : ''}>Working</option>
+        <option value="archived" ${link.category === 'archived' ? 'selected' : ''}>Archived</option>
+        <option value="temporary" ${link.category === 'temporary' ? 'selected' : ''}>Temporary</option>
+    `;
+    linkContent.appendChild(categorySelector);
+
+    // Metadata
+    const metadata = document.createElement('div');
+    metadata.className = 'link-metadata';
+    metadata.id = metaId;
+    metadata.innerHTML = `
+        <div class="link-meta-item">
+            <span class="link-meta-label">Added:</span>
+            ${link.timestamp}
+        </div>
+        <div class="link-meta-item">
+            <span class="link-meta-label">IP:</span>
+            ${link.ip}
+        </div>
+    `;
+    linkContent.appendChild(metadata);
+
+    li.appendChild(document.createElement('div')).className = 'link-favicon';
+    li.querySelector('.link-favicon').setAttribute('data-url', link.url);
+    li.querySelector('.link-favicon').textContent = emoji;
+
+    li.appendChild(linkContent);
+
+    const actions = document.createElement('div');
+    actions.className = 'link-actions';
+    actions.innerHTML = `
+        <button type="button" class="link-action-btn info" data-action="info" title="More info">ℹ️</button>
+        <button type="button" class="link-action-btn copy" data-action="copy" title="Copy URL">📋</button>
+        <button type="button" class="link-action-btn delete" data-action="delete" data-url="${link.url}" title="Delete">🗑️</button>
+    `;
+    li.appendChild(actions);
+
+    return li;
+}
+
+/**
+ * Attach event handlers to link items (use delegation on parent containers)
  */
 function attachLinkEventHandlers() {
-    // Info button (expand metadata)
-    linkList.addEventListener('click', (e) => {
-        if (e.target.closest('.link-action-btn.info')) {
-            const item = e.target.closest('.link-item');
-            const metadata = item.querySelector('.link-metadata');
-            metadata.classList.toggle('expanded');
-        }
+    const lists = [linkListWorking, linkListArchived, linkListTemporary];
+
+    lists.forEach(list => {
+        // Remove old listeners (cleanup)
+        list.replaceWith(list.cloneNode(true));
     });
 
-    // Copy button
-    linkList.addEventListener('click', (e) => {
-        if (e.target.closest('.link-action-btn.copy')) {
-            const item = e.target.closest('.link-item');
-            const url = item.getAttribute('data-url');
-            const btn = e.target.closest('.link-action-btn.copy');
+    // Re-query after cloning
+    const newListWorking = document.getElementById('link-list-working');
+    const newListArchived = document.getElementById('link-list-archived');
+    const newListTemporary = document.getElementById('link-list-temporary');
+    const newLists = [newListWorking, newListArchived, newListTemporary];
 
-            navigator.clipboard.writeText(url).then(() => {
-                showToast('Copied to clipboard!', 'success');
+    // Attach listeners to all lists
+    newLists.forEach(list => {
+        // Info button (expand metadata)
+        list.addEventListener('click', (e) => {
+            if (e.target.closest('.link-action-btn.info')) {
+                const item = e.target.closest('.link-item');
+                const metadata = item.querySelector('.link-metadata');
+                metadata.classList.toggle('expanded');
+            }
+        });
 
-                // Visual feedback
-                const originalText = btn.textContent;
-                btn.textContent = '✓';
-                btn.style.color = 'var(--success)';
+        // Copy button
+        list.addEventListener('click', (e) => {
+            if (e.target.closest('.link-action-btn.copy')) {
+                const item = e.target.closest('.link-item');
+                const url = item.getAttribute('data-url');
+                const btn = e.target.closest('.link-action-btn.copy');
 
-                setTimeout(() => {
-                    btn.textContent = originalText;
-                    btn.style.color = '';
-                }, 1500);
-            }).catch(() => {
-                showToast('Failed to copy', 'error');
-            });
-        }
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('Copied to clipboard!', 'success');
+
+                    // Visual feedback
+                    const originalText = btn.textContent;
+                    btn.textContent = '✓';
+                    btn.style.color = 'var(--success)';
+
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.color = '';
+                    }, 1500);
+                }).catch(() => {
+                    showToast('Failed to copy', 'error');
+                });
+            }
+        });
+
+        // Delete button
+        list.addEventListener('click', (e) => {
+            if (e.target.closest('.link-action-btn.delete')) {
+                const item = e.target.closest('.link-item');
+                const url = item.getAttribute('data-url');
+                deleteTarget = url;
+                modalUrl.textContent = url;
+                modalOverlay.classList.add('active');
+            }
+        });
+
+        // Category change
+        list.addEventListener('change', (e) => {
+            if (e.target.classList.contains('link-category-select')) {
+                const url = e.target.getAttribute('data-url');
+                const newCategory = e.target.value;
+                changeLinkCategory(url, newCategory);
+            }
+        });
     });
+}
 
-    // Delete button
-    linkList.addEventListener('click', (e) => {
-        if (e.target.closest('.link-action-btn.delete')) {
-            const item = e.target.closest('.link-item');
-            const url = item.getAttribute('data-url');
-            deleteTarget = url;
-            modalUrl.textContent = url;
-            modalOverlay.classList.add('active');
-        }
-    });
+/**
+ * Change link category and re-render
+ */
+function changeLinkCategory(url, newCategory) {
+    const link = allLinks.find(l => l.url === url);
+    if (link) {
+        link.category = newCategory;
+        applyFiltersAndSort();
+    }
 }
 
 // === API Operations ===
@@ -361,7 +428,7 @@ async function addLink() {
 
             // Add to local list
             const now = new Date().toISOString();
-            const newLink = { url: validUrl, timestamp: now, ip: 'You' };
+            const newLink = { url: validUrl, timestamp: now, ip: 'You', category: 'working' };
             allLinks.unshift(newLink);
             applyFiltersAndSort();
         } else if (data.status === 'duplicate') {
