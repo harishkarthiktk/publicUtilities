@@ -113,14 +113,12 @@ body {
 .app-header__icon {
     width: 28px;
     height: 28px;
-    background: var(--accent-primary);
+    background: transparent;
     border-radius: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-weight: 700;
-    color: white;
-    font-size: 0.9rem;
+    flex-shrink: 0;
 }
 
 .app-header__actions {
@@ -1024,11 +1022,21 @@ body {
 
     .kanban-section {
         padding: var(--spacing-lg) var(--spacing-lg);
+        /* Mobile scrolling fix: Allow natural content flow */
+        flex: none;
+        overflow: visible;
+        height: auto;
     }
 
     .kanban-column {
-        max-height: calc(100vh - 260px);
-        min-height: 350px;
+        /* Remove height constraints for natural scrolling */
+        max-height: none;
+        min-height: auto;
+    }
+
+    .kanban-column .link-list {
+        /* Allow list content to flow naturally */
+        overflow-y: visible;
     }
 
     .input-wrapper {
@@ -1135,11 +1143,21 @@ body {
 
     .kanban-section {
         padding: var(--spacing-md) var(--spacing-md);
+        /* Mobile scrolling fix: Allow natural content flow */
+        flex: none;
+        overflow: visible;
+        height: auto;
     }
 
     .kanban-column {
-        max-height: calc(100vh - 240px);
-        min-height: 300px;
+        /* Remove height constraints for natural scrolling */
+        max-height: none;
+        min-height: auto;
+    }
+
+    .kanban-column .link-list {
+        /* Allow list content to flow naturally */
+        overflow-y: visible;
     }
 
     .link-item {
