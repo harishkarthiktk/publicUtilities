@@ -503,12 +503,12 @@ body {
 .link-item {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: clamp(var(--spacing-md), 2.5vw, var(--spacing-lg));
-    margin-bottom: var(--spacing-md);
+    border-radius: 10px;
+    padding: 0.625rem var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
     display: flex;
-    gap: clamp(var(--spacing-md), 2vw, var(--spacing-lg));
-    align-items: flex-start;
+    gap: var(--spacing-md);
+    align-items: center;
     transition: all 0.2s ease;
     animation: slideInUp 0.4s ease;
 }
@@ -520,16 +520,17 @@ body {
 }
 
 .link-favicon {
-    width: 40px;
-    height: 40px;
-    border-radius: 8px;
-    background: var(--input-bg);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     flex-shrink: 0;
     overflow: hidden;
+    opacity: 0.8;
 }
 
 .link-favicon img {
@@ -547,11 +548,13 @@ body {
     color: var(--accent-primary);
     text-decoration: none;
     font-family: var(--font-mono);
-    font-size: 0.95rem;
-    word-break: break-all;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: color 0.2s ease;
     display: block;
-    margin-bottom: var(--spacing-sm);
+    margin: 0;
 }
 
 .link-url:hover {
@@ -561,7 +564,8 @@ body {
 .link-domain {
     color: var(--text-secondary);
     font-size: 0.85rem;
-    margin-bottom: var(--spacing-sm);
+    margin-bottom: 0.25rem;
+    display: none;
 }
 
 .link-metadata {
@@ -575,6 +579,11 @@ body {
 
 .link-metadata.expanded {
     max-height: 200px;
+}
+
+.link-metadata.expanded ~ .link-domain,
+.link-item:has(.link-metadata.expanded) .link-domain {
+    display: block;
 }
 
 .link-meta-item {
@@ -595,32 +604,29 @@ body {
 }
 
 .link-action-btn {
-    width: clamp(40px, 8vw, 44px);
-    height: clamp(40px, 8vw, 44px);
-    min-width: 40px;
-    min-height: 40px;
-    border: 1px solid var(--border-color);
-    background: var(--input-bg);
-    color: var(--text-primary);
-    border-radius: 8px;
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 6px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    font-size: 1.1rem;
+    font-size: 1rem;
     flex-shrink: 0;
+    opacity: 0.6;
 }
 
 .link-action-btn:hover {
-    background: var(--accent-secondary);
-    border-color: var(--accent-primary);
-    transform: scale(1.1);
+    opacity: 1;
+    background: oklch(from var(--accent-primary) l c h / 0.1);
 }
 
 .link-action-btn.delete:hover {
     background: oklch(from var(--error) l c h / 0.15);
-    border-color: var(--error);
     color: var(--error);
 }
 
@@ -656,18 +662,30 @@ body {
     }
 }
 
+/* Kanban section */
+.kanban-section {
+    flex: 1;
+    width: 100%;
+    padding: var(--spacing-lg) clamp(var(--spacing-md), 3vw, var(--spacing-xl));
+    background: var(--bg-primary);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
 /* Kanban board */
 .kanban-board {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
+    height: 100%;
 }
 
 .kanban-column {
     display: flex;
     flex-direction: column;
-    min-height: 500px;
+    min-height: 400px;
+    max-height: calc(100vh - 280px);
 }
 
 .kanban-header {
@@ -702,7 +720,7 @@ body {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
 }
 
 .link-category-select {
@@ -716,6 +734,11 @@ body {
     cursor: pointer;
     transition: all 0.2s ease;
     margin-top: var(--spacing-sm);
+    display: none;
+}
+
+.link-item:has(.link-metadata.expanded) .link-category-select {
+    display: block;
 }
 
 .link-category-select:hover {
@@ -889,6 +912,41 @@ body {
 }
 
 /* Responsive */
+
+/* Large screens - 1400px+ */
+@media (min-width: 1400px) {
+    .kanban-board {
+        grid-template-columns: repeat(3, minmax(350px, 1fr));
+    }
+
+    .kanban-section {
+        padding: var(--spacing-lg) var(--spacing-2xl);
+    }
+}
+
+/* Medium-large screens - 1024px to 1399px */
+@media (min-width: 1024px) and (max-width: 1399px) {
+    .kanban-board {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Tablets - 769px to 1023px */
+@media (min-width: 769px) and (max-width: 1023px) {
+    .kanban-board {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .kanban-section {
+        padding: var(--spacing-lg) var(--spacing-lg);
+    }
+
+    .kanban-column {
+        max-height: calc(100vh - 240px);
+    }
+}
+
 @media (min-width: 769px) {
     .input-section {
         flex-direction: row;
@@ -964,8 +1022,13 @@ body {
         gap: var(--spacing-md);
     }
 
+    .kanban-section {
+        padding: var(--spacing-lg) var(--spacing-lg);
+    }
+
     .kanban-column {
-        min-height: 300px;
+        max-height: calc(100vh - 260px);
+        min-height: 350px;
     }
 
     .input-wrapper {
@@ -974,12 +1037,13 @@ body {
     }
 
     .link-item {
-        flex-direction: column;
-        padding: var(--spacing-md);
+        flex-direction: row;
+        padding: 0.625rem var(--spacing-md);
+        align-items: center;
     }
 
     .link-actions {
-        width: 100%;
+        width: auto;
         justify-content: flex-end;
     }
 
@@ -1018,7 +1082,7 @@ body {
     }
 
     .link-item {
-        padding: var(--spacing-md);
+        padding: 0.625rem var(--spacing-md);
         gap: var(--spacing-md);
     }
 
@@ -1069,8 +1133,13 @@ body {
         gap: var(--spacing-sm);
     }
 
+    .kanban-section {
+        padding: var(--spacing-md) var(--spacing-md);
+    }
+
     .kanban-column {
-        min-height: 250px;
+        max-height: calc(100vh - 240px);
+        min-height: 300px;
     }
 
     .link-item {
