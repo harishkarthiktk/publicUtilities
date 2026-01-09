@@ -14,10 +14,7 @@ const confirmDelete = document.getElementById('confirm-delete');
 const resultCount = document.getElementById('result-count');
 const modalUrl = document.getElementById('modal-url');
 const sortSelect = document.getElementById('sort-select');
-const exportJsonBtn = document.getElementById('export-json');
-const exportCsvBtn = document.getElementById('export-csv');
-const exportHtmlBtn = document.getElementById('export-html');
-const importBtn = document.getElementById('import-btn');
+const exportImportSelect = document.getElementById('export-import-select');
 const importFile = document.getElementById('import-file');
 
 // State
@@ -453,13 +450,21 @@ sortSelect.addEventListener('change', () => {
     applyFiltersAndSort();
 });
 
-// Export buttons
-exportJsonBtn.addEventListener('click', () => exportData('json'));
-exportCsvBtn.addEventListener('click', () => exportData('csv'));
-exportHtmlBtn.addEventListener('click', () => exportData('html'));
+// Export / Import select
+exportImportSelect.addEventListener('change', (e) => {
+    const value = e.target.value;
 
-// Import
-importBtn.addEventListener('click', () => importFile.click());
+    if (value.startsWith('export-')) {
+        const type = value.split('-')[1];
+        exportData(type);
+    } else if (value === 'import') {
+        importFile.click();
+    }
+
+    // Reset select to default
+    e.target.value = '';
+});
+
 importFile.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;

@@ -17,19 +17,16 @@
             <span>FastWebDrop</span>
         </div>
         <div class="app-header__actions">
-            <select id="sort-select" class="sort-select">
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="alpha">A-Z</option>
-                <option value="domain">By Domain</option>
+            <select id="export-import-select" class="export-import-select">
+                <option value="">Export / Import</option>
+                <optgroup label="Export">
+                    <option value="export-json">Export as JSON</option>
+                    <option value="export-csv">Export as CSV</option>
+                    <option value="export-html">Export as HTML</option>
+                </optgroup>
+                <option value="import">Import</option>
             </select>
-            <div class="export-import-section">
-                <button id="export-json" class="export-btn" title="Export JSON">📄</button>
-                <button id="export-csv" class="export-btn" title="Export CSV">📊</button>
-                <button id="export-html" class="export-btn" title="Export HTML">🌐</button>
-                <input type="file" id="import-file" accept=".json,.csv" style="display: none;">
-                <button id="import-btn" class="import-btn" title="Import file">📥</button>
-            </div>
+            <input type="file" id="import-file" accept=".json,.csv" style="display: none;">
             <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle theme">☀️</button>
         </div>
     </header>
@@ -76,6 +73,12 @@
                 <button type="button" class="add-button" id="add-button">
                     <span id="add-button-text">Add Link</span>
                 </button>
+                <select id="sort-select" class="sort-select">
+                    <option value="newest">Newest first</option>
+                    <option value="oldest">Oldest first</option>
+                    <option value="alpha">A-Z</option>
+                    <option value="domain">By Domain</option>
+                </select>
             </div>
 
             <!-- Empty state -->
