@@ -159,11 +159,21 @@ function updateUI() {
 // === Data Loading ===
 
 /**
- * Initialize empty links array (template no longer renders items)
+ * Load initial links from backend (passed via INITIAL_LINKS global)
  */
 function loadLinksFromTemplate() {
-    allLinks = [];
-    filteredLinks = [];
+    // Load from backend data embedded in template
+    if (typeof INITIAL_LINKS !== 'undefined' && Array.isArray(INITIAL_LINKS)) {
+        allLinks = INITIAL_LINKS.map(link => ({
+            url: link.url,
+            timestamp: link.timestamp || 'N/A',
+            ip: link.ip || 'N/A',
+            category: link.category || 'working'
+        }));
+    } else {
+        allLinks = [];
+    }
+    filteredLinks = [...allLinks];
 }
 
 /**
@@ -210,8 +220,6 @@ function renderLinks() {
             column.querySelector('.kanban-count').textContent = links.length;
         }
     });
-
-    attachLinkEventHandlers();
 }
 
 /**
@@ -288,24 +296,12 @@ function createLinkItem(link, index) {
 }
 
 /**
- * Attach event handlers to link items (use delegation on parent containers)
+ * Attach event handlers to link items (use event delegation)
  */
 function attachLinkEventHandlers() {
     const lists = [linkListWorking, linkListArchived, linkListTemporary];
 
     lists.forEach(list => {
-        // Remove old listeners (cleanup)
-        list.replaceWith(list.cloneNode(true));
-    });
-
-    // Re-query after cloning
-    const newListWorking = document.getElementById('link-list-working');
-    const newListArchived = document.getElementById('link-list-archived');
-    const newListTemporary = document.getElementById('link-list-temporary');
-    const newLists = [newListWorking, newListArchived, newListTemporary];
-
-    // Attach listeners to all lists
-    newLists.forEach(list => {
         // Info button (expand metadata)
         list.addEventListener('click', (e) => {
             if (e.target.closest('.link-action-btn.info')) {
@@ -621,6 +617,7 @@ function init() {
     loadLinksFromTemplate();
     const savedSort = localStorage.getItem('sort') || 'newest';
     sortSelect.value = savedSort;
+    attachLinkEventHandlers();
     applyFiltersAndSort();
 }
 
