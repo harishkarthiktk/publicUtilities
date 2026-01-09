@@ -36,6 +36,14 @@ class UpdateCategory(BaseModel):
     url: str
     category: str
 
+@app.get("/favicon.svg")
+async def favicon():
+    svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+        <rect width="100" height="100" fill="#4A9FD8" rx="20"/>
+        <path d="M50 20 L65 55 L50 55 L70 80 L30 50 L50 50 Z" fill="white"/>
+    </svg>"""
+    return Response(content=svg, media_type="image/svg+xml")
+
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     links = load_links()
