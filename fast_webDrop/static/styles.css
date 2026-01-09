@@ -101,7 +101,7 @@ body {
     display: flex;
     align-items: center;
     gap: var(--spacing-md);
-    font-size: 1.5rem;
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
     font-weight: 700;
     letter-spacing: -0.5px;
     background: linear-gradient(135deg, var(--accent-primary), oklch(0.75 0.12 200.00));
@@ -207,8 +207,8 @@ body {
 
 .content {
     flex: 1;
-    padding: var(--spacing-xl);
-    max-width: 900px;
+    padding: clamp(var(--spacing-md), 3vw, var(--spacing-xl));
+    max-width: min(900px, 100% - 2rem);
     margin: 0 auto;
     width: 100%;
 }
@@ -258,19 +258,19 @@ body {
 /* Empty state */
 .empty-state {
     text-align: center;
-    padding: var(--spacing-2xl);
+    padding: clamp(var(--spacing-lg), 5vw, var(--spacing-2xl));
     opacity: 0;
     animation: fadeInUp 0.5s ease forwards;
 }
 
 .empty-state__icon {
-    font-size: 4rem;
+    font-size: clamp(2.5rem, 8vw, 4rem);
     margin-bottom: var(--spacing-lg);
     opacity: 0.3;
 }
 
 .empty-state__title {
-    font-size: 1.5rem;
+    font-size: clamp(1.2rem, 4vw, 1.5rem);
     font-weight: 700;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
@@ -326,7 +326,7 @@ body {
 .drop-zone {
     border: 2px dashed var(--border-color);
     border-radius: 16px;
-    padding: var(--spacing-2xl);
+    padding: clamp(var(--spacing-lg), 4vw, var(--spacing-2xl));
     margin-bottom: var(--spacing-xl);
     text-align: center;
     background: var(--bg-secondary);
@@ -336,7 +336,7 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
+    min-height: clamp(120px, 30vw, 200px);
     position: relative;
     overflow: hidden;
 }
@@ -376,13 +376,13 @@ body {
 }
 
 .drop-zone__icon {
-    font-size: 3.5rem;
+    font-size: clamp(2rem, 6vw, 3.5rem);
     margin-bottom: var(--spacing-md);
     opacity: 0.6;
 }
 
 .drop-zone__title {
-    font-size: 1.2rem;
+    font-size: clamp(1rem, 3vw, 1.2rem);
     font-weight: 600;
     color: var(--text-primary);
     margin-bottom: var(--spacing-sm);
@@ -397,10 +397,10 @@ body {
 .input-section {
     background: var(--bg-secondary);
     border-radius: 16px;
-    padding: var(--spacing-lg);
+    padding: clamp(var(--spacing-md), 3vw, var(--spacing-lg));
     margin-bottom: var(--spacing-xl);
     display: flex;
-    gap: var(--spacing-md);
+    gap: clamp(var(--spacing-sm), 2vw, var(--spacing-md));
     align-items: flex-end;
     flex-wrap: wrap;
 }
@@ -493,10 +493,10 @@ body {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: var(--spacing-lg);
+    padding: clamp(var(--spacing-md), 2.5vw, var(--spacing-lg));
     margin-bottom: var(--spacing-md);
     display: flex;
-    gap: var(--spacing-lg);
+    gap: clamp(var(--spacing-md), 2vw, var(--spacing-lg));
     align-items: flex-start;
     transition: all 0.2s ease;
     animation: slideInUp 0.4s ease;
@@ -584,8 +584,10 @@ body {
 }
 
 .link-action-btn {
-    width: 40px;
-    height: 40px;
+    width: clamp(40px, 8vw, 44px);
+    height: clamp(40px, 8vw, 44px);
+    min-width: 40px;
+    min-height: 40px;
     border: 1px solid var(--border-color);
     background: var(--input-bg);
     color: var(--text-primary);
@@ -742,7 +744,7 @@ body {
 }
 
 .modal__title {
-    font-size: 1.3rem;
+    font-size: clamp(1.1rem, 3vw, 1.3rem);
     font-weight: 700;
     margin-bottom: var(--spacing-md);
     color: var(--text-primary);
@@ -780,7 +782,7 @@ body {
     font-weight: 600;
     transition: all 0.2s ease;
     font-family: var(--font-body);
-    min-height: 40px;
+    min-height: 44px;
 }
 
 .modal__button--cancel {
@@ -810,8 +812,12 @@ body {
         height: 60px;
     }
 
+    .main-container {
+        margin-top: 60px;
+    }
+
     .app-header__brand {
-        font-size: 1.2rem;
+        font-size: clamp(1rem, 2vw, 1.2rem);
     }
 
     .app-header__actions {
@@ -882,6 +888,10 @@ body {
         padding: 0 var(--spacing-md);
     }
 
+    .main-container {
+        margin-top: 55px;
+    }
+
     .content {
         padding: var(--spacing-md);
     }
@@ -902,10 +912,24 @@ body {
 
     .input-section {
         gap: var(--spacing-sm);
+        flex-direction: column;
+    }
+
+    .input-wrapper {
+        width: 100%;
+    }
+
+    .url-input {
+        width: 100%;
+    }
+
+    .add-button {
+        width: 100%;
+        justify-content: center;
     }
 
     .sort-select {
-        min-width: 100%;
+        width: 100%;
     }
 
     .export-import-section {
