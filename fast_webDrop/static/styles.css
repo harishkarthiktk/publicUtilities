@@ -141,6 +141,11 @@ body {
     transition: all 0.2s ease;
 }
 
+.input-controls .sort-select {
+    flex: 1;
+    min-width: auto;
+}
+
 .sort-select:focus, .export-import-select:focus {
     outline: none;
     border-color: var(--accent-primary);
@@ -400,13 +405,18 @@ body {
     padding: clamp(var(--spacing-md), 3vw, var(--spacing-lg));
     margin-bottom: var(--spacing-xl);
     display: flex;
+    flex-direction: column;
     gap: clamp(var(--spacing-sm), 2vw, var(--spacing-md));
-    align-items: flex-end;
-    flex-wrap: wrap;
 }
 
 .input-wrapper {
-    flex: 1;
+    width: 100%;
+}
+
+.input-controls {
+    display: flex;
+    gap: clamp(var(--spacing-sm), 2vw, var(--spacing-md));
+    flex-wrap: wrap;
 }
 
 .input-label {
@@ -450,10 +460,11 @@ body {
     min-height: 44px;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: var(--spacing-sm);
     font-family: var(--font-body);
     box-shadow: var(--shadow-sm);
-    flex-shrink: 0;
+    flex: 1;
 }
 
 .add-button:hover {
@@ -806,6 +817,33 @@ body {
 }
 
 /* Responsive */
+@media (min-width: 769px) {
+    .input-section {
+        flex-direction: row;
+        align-items: flex-end;
+    }
+
+    .input-wrapper {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .input-controls {
+        display: flex;
+        gap: clamp(var(--spacing-sm), 2vw, var(--spacing-md));
+        flex-wrap: nowrap;
+    }
+
+    .add-button {
+        flex: 0 0 auto;
+    }
+
+    .input-controls .sort-select {
+        flex: 0 0 auto;
+        min-width: 140px;
+    }
+}
+
 @media (max-width: 768px) {
     .app-header {
         padding: 0 var(--spacing-lg);
@@ -843,8 +881,10 @@ body {
         padding: var(--spacing-lg);
     }
 
-    .input-section {
-        flex-direction: column;
+    .input-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: clamp(var(--spacing-sm), 2vw, var(--spacing-md));
     }
 
     .input-wrapper {
@@ -923,12 +963,18 @@ body {
         width: 100%;
     }
 
+    .input-controls {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+
     .add-button {
         width: 100%;
         justify-content: center;
     }
 
-    .sort-select {
+    .input-controls .sort-select {
         width: 100%;
     }
 
