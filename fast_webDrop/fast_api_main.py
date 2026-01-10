@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request, UploadFile, File, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -7,11 +7,31 @@ from pydantic import BaseModel
 import json
 import os
 import csv
+import base64
 from io import StringIO
+from authService import AuthManager, AuthConfig
+from authService.logger import setup_logger, AuthLogger
 
 app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Create logs directory if it doesn't exist
+LOGS_DIR = "logs"
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+# Initialize authentication with file logging
+logger = setup_logger(
+    name="AuthManager",
+    log_file=os.path.join(LOGS_DIR, "auth.log"),
+    level="INFO",
+    max_bytes=5242880,  # 5MB
+    backup_count=5
+)
+auth_logger = AuthLogger(logger)
+auth_config = AuthConfig(yaml_file='users.yaml', use_env_vars=False)
+auth_manager = AuthManager(auth_config, logger=auth_logger)
 
 # Simple file-based storage
 LINKS_FILE = "links.json"
@@ -36,6 +56,27 @@ class UpdateCategory(BaseModel):
     url: str
     category: str
 
+async def verify_auth(request: Request):
+    """Verify HTTP Basic Auth credentials using authService."""
+    auth_header = request.headers.get('Authorization', '')
+
+    if not auth_header:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated"
+        )
+
+    result = auth_manager.verify_basic_auth_header(
+        auth_header,
+        ip_address=request.client.host
+    )
+    if not result.success:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=result.message
+        )
+    return result.user
+
 @app.get("/favicon.svg")
 async def favicon():
     svg = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
@@ -53,7 +94,7 @@ async def home(request: Request):
     })
 
 @app.post("/add-link")
-async def add_link(request: Request, link: Link):
+async def add_link(request: Request, link: Link, user = Depends(verify_auth)):
     links = load_links()
     client_ip = request.client.host
     timestamp = datetime.now().isoformat()
@@ -65,14 +106,14 @@ async def add_link(request: Request, link: Link):
     return {"status": "success"}
 
 @app.post("/delete-link")
-async def delete_link(link: DeleteLink):
+async def delete_link(link: DeleteLink, user = Depends(verify_auth)):
     links = load_links()
     links = [l for l in links if l["url"] != link.url]
     save_links(links)
     return {"status": "success"}
 
 @app.post("/update-category")
-async def update_category(data: UpdateCategory):
+async def update_category(data: UpdateCategory, user = Depends(verify_auth)):
     links = load_links()
     for link in links:
         if link["url"] == data.url:
@@ -82,13 +123,13 @@ async def update_category(data: UpdateCategory):
     return {"status": "success"}
 
 @app.get("/export-json")
-async def export_json():
+async def export_json(user = Depends(verify_auth)):
     links = load_links()
     content = json.dumps(links, indent=2)
     return Response(content=content, media_type="application/json", headers={"Content-Disposition": f"attachment; filename=links.json"})
 
 @app.get("/export-csv")
-async def export_csv():
+async def export_csv(user = Depends(verify_auth)):
     links = load_links()
     output = StringIO()
     writer = csv.writer(output)
@@ -98,7 +139,7 @@ async def export_csv():
     return Response(content=output.getvalue(), media_type="text/csv", headers={"Content-Disposition": f"attachment; filename=links.csv"})
 
 @app.get("/export-html")
-async def export_html():
+async def export_html(user = Depends(verify_auth)):
     links = load_links()
     html = """<!DOCTYPE html>
 <html lang="en">
@@ -117,7 +158,7 @@ async def export_html():
     return Response(content=html, media_type="text/html", headers={"Content-Disposition": f"attachment; filename=links.html"})
 
 @app.post("/import-links")
-async def import_links(file: UploadFile = File(...)):
+async def import_links(file: UploadFile = File(...), user = Depends(verify_auth)):
     if not file.filename:
         return {"status": "error", "message": "No file provided"}
     

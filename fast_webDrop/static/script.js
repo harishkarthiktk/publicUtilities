@@ -19,6 +19,137 @@ const sortSelect = document.getElementById('sort-select');
 const exportImportSelect = document.getElementById('export-import-select');
 const importFile = document.getElementById('import-file');
 
+// === Authentication ===
+
+// Authentication state
+let authCredentials = null;
+
+// Load credentials from localStorage
+function loadStoredCredentials() {
+    const stored = localStorage.getItem('authCredentials');
+    if (stored) {
+        try {
+            const creds = JSON.parse(stored);
+            // Check if credentials are older than 24 hours
+            const age = Date.now() - (creds.timestamp || 0);
+            if (age > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('authCredentials');
+                return false;
+            }
+            authCredentials = creds;
+            return true;
+        } catch (e) {
+            localStorage.removeItem('authCredentials');
+            return false;
+        }
+    }
+    return false;
+}
+
+// Save credentials to localStorage
+function saveCredentials(username, password) {
+    authCredentials = {
+        username,
+        password,
+        token: btoa(`${username}:${password}`),
+        timestamp: Date.now()
+    };
+    localStorage.setItem('authCredentials', JSON.stringify(authCredentials));
+}
+
+// Clear credentials
+function clearCredentials() {
+    authCredentials = null;
+    localStorage.removeItem('authCredentials');
+}
+
+// Get authorization header
+function getAuthHeader() {
+    if (!authCredentials) {
+        return {};
+    }
+    return {
+        'Authorization': `Basic ${authCredentials.token}`
+    };
+}
+
+// Enhanced fetch wrapper
+async function authenticatedFetch(url, options = {}) {
+    const authHeaders = getAuthHeader();
+    const headers = {
+        ...authHeaders,
+        ...(options.headers || {})
+    };
+
+    const response = await fetch(url, {
+        ...options,
+        headers
+    });
+
+    // Handle 401 - clear credentials and show login
+    if (response.status === 401) {
+        clearCredentials();
+        document.getElementById('login-overlay').style.display = 'flex';
+        throw new Error('Authentication required');
+    }
+
+    return response;
+}
+
+// Check authentication on page load
+function checkAuthentication() {
+    if (!loadStoredCredentials()) {
+        // No credentials - show login modal
+        document.getElementById('login-overlay').style.display = 'flex';
+        return false;
+    }
+    // Has credentials - hide login modal
+    document.getElementById('login-overlay').style.display = 'none';
+    return true;
+}
+
+// Login form handler
+document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const loginButton = document.getElementById('login-button');
+    const loginError = document.getElementById('login-error');
+
+    // Disable button during login
+    loginButton.disabled = true;
+    document.getElementById('login-button-text').textContent = 'Logging in...';
+    loginError.style.display = 'none';
+
+    try {
+        // Test credentials by attempting to fetch homepage
+        const response = await fetch('/', {
+            headers: {
+                'Authorization': `Basic ${btoa(`${username}:${password}`)}`
+            }
+        });
+
+        if (response.ok) {
+            // Success - save credentials and reload page
+            saveCredentials(username, password);
+            document.getElementById('login-overlay').style.display = 'none';
+            location.reload();
+        } else {
+            // Failed authentication
+            loginError.textContent = 'Invalid username or password';
+            loginError.style.display = 'block';
+            loginButton.disabled = false;
+            document.getElementById('login-button-text').textContent = 'Login';
+        }
+    } catch (error) {
+        loginError.textContent = 'Connection error. Please try again.';
+        loginError.style.display = 'block';
+        loginButton.disabled = false;
+        document.getElementById('login-button-text').textContent = 'Login';
+    }
+});
+
 // State
 let allLinks = [];
 let filteredLinks = [];
@@ -363,7 +494,7 @@ function attachLinkEventHandlers() {
  */
 async function changeLinkCategory(url, newCategory) {
     try {
-        const response = await fetch('/update-category', {
+        const response = await authenticatedFetch('/update-category', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, category: newCategory })
@@ -426,7 +557,7 @@ async function addLink() {
     document.getElementById('add-button-text').innerHTML = '<span class="spinner"></span>';
 
     try {
-        const response = await fetch('/add-link', {
+        const response = await authenticatedFetch('/add-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: validUrl })
@@ -465,7 +596,7 @@ async function addLink() {
  */
 async function deleteLink(url) {
     try {
-        const response = await fetch('/delete-link', {
+        const response = await authenticatedFetch('/delete-link', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url })
@@ -491,7 +622,7 @@ async function deleteLink(url) {
  */
 async function exportData(type) {
     try {
-        const response = await fetch(`/export-${type}`);
+        const response = await authenticatedFetch(`/export-${type}`);
         if (!response.ok) throw new Error('Export failed');
         const blob = await response.blob();
         const url = URL.createObjectURL(blob);
@@ -553,7 +684,7 @@ importFile.addEventListener('change', async (e) => {
     formData.append('file', file);
 
     try {
-        const response = await fetch('/import-links', {
+        const response = await authenticatedFetch('/import-links', {
             method: 'POST',
             body: formData
         });
@@ -630,12 +761,19 @@ dropZone.addEventListener('drop', async (e) => {
 // === Initialization ===
 
 function init() {
-    loadTheme();
-    loadLinksFromTemplate();
-    const savedSort = localStorage.getItem('sort') || 'newest';
-    sortSelect.value = savedSort;
-    attachLinkEventHandlers();
-    applyFiltersAndSort();
+    // Initialize authentication before anything else
+    if (checkAuthentication()) {
+        // User is authenticated - load and render links
+        loadTheme();
+        loadLinksFromTemplate();
+        const savedSort = localStorage.getItem('sort') || 'newest';
+        sortSelect.value = savedSort;
+        attachLinkEventHandlers();
+        applyFiltersAndSort();
+    } else {
+        // User not authenticated - login modal is already shown by checkAuthentication
+        loadTheme();
+    }
 }
 
 // Initialize when DOM is ready
