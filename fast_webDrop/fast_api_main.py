@@ -8,13 +8,16 @@ import json
 import os
 import csv
 import base64
+import signal
+import asyncio
 from io import StringIO
+from contextlib import asynccontextmanager
 from authService import AuthManager, AuthConfig
 from authService.logger import setup_logger, AuthLogger
 
-app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+# Global state for shutdown
+_shutdown_event = asyncio.Event()
+_pending_requests = 0
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = "logs"
@@ -35,6 +38,41 @@ auth_manager = AuthManager(auth_config, logger=auth_logger)
 
 # Simple file-based storage
 LINKS_FILE = "links.json"
+
+
+async def lifespan(app: FastAPI):
+    """Manage app startup and graceful shutdown."""
+    # Startup
+    print("FastWebDrop starting up...")
+    logger.info("Application startup")
+
+    yield
+
+    # Shutdown - graceful cleanup
+    print("\nInitiating graceful shutdown...")
+    logger.info("Application shutdown initiated")
+
+    # Give in-flight requests time to complete (Uvicorn handles this)
+    # but we ensure our resources are cleaned up
+    try:
+        # Close the auth logger
+        if hasattr(auth_logger, 'close'):
+            auth_logger.close()
+
+        # Close the main logger
+        if hasattr(logger, 'close'):
+            logger.close()
+
+        # Final data sync - ensure no pending writes
+        print("Cleaning up resources...")
+        logger.info("Graceful shutdown completed")
+    except Exception as e:
+        print(f"Error during shutdown: {e}")
+
+
+app = FastAPI(lifespan=lifespan)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 def load_links():
     if os.path.exists(LINKS_FILE):
@@ -195,6 +233,31 @@ async def import_links(file: UploadFile = File(...), user = Depends(verify_auth)
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+def setup_signal_handlers():
+    """Setup OS signal handlers for graceful shutdown."""
+
+    def signal_handler(sig, frame):
+        signame = signal.Signals(sig).name
+        print(f"\nReceived {signame} signal. Gracefully shutting down...")
+        logger.info(f"Received {signame} signal, initiating graceful shutdown")
+        # Uvicorn will handle the shutdown through SIGINT/SIGTERM
+
+    # Handle SIGINT (Ctrl+C) and SIGTERM (kill signal)
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+    setup_signal_handlers()
+
+    # Run with shutdown_timeout to allow requests to complete
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        log_level="info",
+        access_log=True,
+        timeout_graceful_shutdown=30,  # Allow 30 seconds for requests to complete
+    )

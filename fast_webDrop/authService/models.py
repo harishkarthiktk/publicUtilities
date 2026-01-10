@@ -27,8 +27,6 @@ class User:
     roles: list = field(default_factory=lambda: ["user"])
     metadata: Dict[str, Any] = field(default_factory=dict)
     last_login: Optional[datetime] = None
-    created_at: Optional[datetime] = None
-    last_modified: Optional[datetime] = None
 
     def has_role(self, role: str) -> bool:
         """Check if user has a specific role."""
@@ -42,9 +40,7 @@ class User:
             'is_active': self.is_active,
             'roles': self.roles,
             'metadata': self.metadata,
-            'last_login': self.last_login.isoformat() if self.last_login else None,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_modified': self.last_modified.isoformat() if self.last_modified else None
+            'last_login': self.last_login.isoformat() if self.last_login else None
         }
 
     def __repr__(self) -> str:

@@ -11,20 +11,10 @@ try:
     from .models import User
     from .config import AuthConfig
     from .logger import setup_logger
-    from .hashing import hash_password, verify_password, migrate_yaml_file
 except ImportError:
     from core import AuthManager
     from models import User
     from config import AuthConfig
     from logger import setup_logger
-    from hashing import hash_password, verify_password, migrate_yaml_file
 
-__all__ = [
-    'AuthManager',
-    'User',
-    'AuthConfig',
-    'setup_logger',
-    'hash_password',
-    'verify_password',
-    'migrate_yaml_file'
-]
+__all__ = ['AuthManager', 'User', 'AuthConfig', 'setup_logger']

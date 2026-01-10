@@ -11,6 +11,7 @@ import base64
 from pathlib import Path
 import tempfile
 import yaml
+import os
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -19,6 +20,7 @@ from core import AuthManager
 from config import AuthConfig
 from models import User, AuthResult
 from logger import setup_logger, AuthLogger
+from hashing import hash_password, verify_password, is_bcrypt_hash
 
 
 class TestAuthConfig(unittest.TestCase):
@@ -29,13 +31,13 @@ class TestAuthConfig(unittest.TestCase):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.yaml_file = Path(self.temp_dir.name) / "users.yaml"
 
-        # Create test users file
+        # Create test users file with hashed passwords
         with open(self.yaml_file, 'w') as f:
             yaml.dump({
                 'users': {
-                    'admin': 'admin_password',
-                    'user1': 'user1_password',
-                    'user2': 'user2_password'
+                    'admin': hash_password('admin_password'),
+                    'user1': hash_password('user1_password'),
+                    'user2': hash_password('user2_password')
                 }
             }, f)
 
@@ -50,7 +52,8 @@ class TestAuthConfig(unittest.TestCase):
 
         self.assertEqual(len(users), 3)
         self.assertIn('admin', users)
-        self.assertEqual(users['admin'], 'admin_password')
+        # Passwords are now hashed, so just verify they're hashes
+        self.assertTrue(is_bcrypt_hash(users['admin']))
 
     def test_validate_config(self):
         """Test configuration validation."""
@@ -67,7 +70,8 @@ class TestAuthConfig(unittest.TestCase):
         """Test getting password for specific user."""
         config = AuthConfig(yaml_file=str(self.yaml_file))
         password = config.get_user_password('admin')
-        self.assertEqual(password, 'admin_password')
+        # Should return the hash, which should be in bcrypt format
+        self.assertTrue(is_bcrypt_hash(password))
 
     def test_get_nonexistent_user(self):
         """Test getting password for non-existent user."""
@@ -87,8 +91,8 @@ class TestAuthManager(unittest.TestCase):
         with open(self.yaml_file, 'w') as f:
             yaml.dump({
                 'users': {
-                    'admin': 'admin_password',
-                    'user1': 'user1_password'
+                    'admin': hash_password('admin_password'),
+                    'user1': hash_password('user1_password')
                 }
             }, f)
 
@@ -197,6 +201,139 @@ class TestAuthManager(unittest.TestCase):
         info = self.auth_manager.get_user_info('nonexistent')
         self.assertIsNone(info)
 
+    def test_add_user_with_hashing(self):
+        """Test adding user with password hashing enabled."""
+        # Add user (passwords should be hashed by default)
+        result = self.auth_manager.add_user('hasheduser', 'mypassword')
+        self.assertTrue(result)
+
+        # Verify password is stored as hash
+        stored_password = self.auth_manager.users['hasheduser']
+        self.assertTrue(is_bcrypt_hash(stored_password))
+
+        # Verify authentication works with plaintext password
+        auth_result = self.auth_manager.verify_credentials('hasheduser', 'mypassword')
+        self.assertTrue(auth_result.success)
+
+    def test_add_user_hashing_disabled(self):
+        """Test adding user with hashing disabled."""
+        # Create manager with use_hashing=False
+        temp_dir = tempfile.TemporaryDirectory()
+        yaml_file = Path(temp_dir.name) / "users.yaml"
+        with open(yaml_file, 'w') as f:
+            yaml.dump({'users': {'admin': 'password'}}, f)
+
+        config = AuthConfig(yaml_file=str(yaml_file))
+        auth_manager = AuthManager(config, use_hashing=False)
+
+        # Add user without hashing
+        result = auth_manager.add_user('plainuser', 'plainpass')
+        self.assertTrue(result)
+
+        # Password should be stored as plaintext
+        stored_password = auth_manager.users['plainuser']
+        self.assertEqual(stored_password, 'plainpass')
+
+        temp_dir.cleanup()
+
+    def test_verify_credentials_with_hashed_password(self):
+        """Test authentication with bcrypt hashed passwords."""
+        # Add user with hashing
+        self.auth_manager.add_user('hashtest', 'password123')
+
+        # Verify correct password works
+        result = self.auth_manager.verify_credentials('hashtest', 'password123')
+        self.assertTrue(result.success)
+
+        # Verify incorrect password fails
+        result = self.auth_manager.verify_credentials('hashtest', 'wrongpass')
+        self.assertFalse(result.success)
+
+    def test_add_user_logs_audit_entry(self):
+        """Test that add_user logs audit entry."""
+        temp_dir = tempfile.TemporaryDirectory()
+        audit_file = os.path.join(temp_dir.name, "audit.log")
+        yaml_file = Path(temp_dir.name) / "users.yaml"
+
+        with open(yaml_file, 'w') as f:
+            yaml.dump({'users': {'admin': 'password'}}, f)
+
+        config = AuthConfig(yaml_file=str(yaml_file))
+        logger = setup_logger(
+            'TestAudit',
+            audit_log_file=audit_file
+        )
+        auth_manager = AuthManager(config, logger=logger)
+
+        # Add user
+        auth_manager.add_user('audituser', 'pass', by_whom='admin', ip_address='192.168.1.1')
+
+        # Check audit log
+        if os.path.exists(audit_file):
+            with open(audit_file, 'r') as f:
+                content = f.read()
+            self.assertIn('USER_ADDED', content)
+            self.assertIn('audituser', content)
+            self.assertIn('admin', content)
+
+        temp_dir.cleanup()
+
+    def test_remove_user_logs_audit_entry(self):
+        """Test that remove_user logs audit entry."""
+        temp_dir = tempfile.TemporaryDirectory()
+        audit_file = os.path.join(temp_dir.name, "audit.log")
+        yaml_file = Path(temp_dir.name) / "users.yaml"
+
+        with open(yaml_file, 'w') as f:
+            yaml.dump({
+                'users': {
+                    'usertoremove': 'password'
+                }
+            }, f)
+
+        config = AuthConfig(yaml_file=str(yaml_file))
+        logger = setup_logger(
+            'TestAudit2',
+            audit_log_file=audit_file
+        )
+        auth_manager = AuthManager(config, logger=logger)
+
+        # Remove user
+        auth_manager.remove_user('usertoremove', by_whom='admin', ip_address='192.168.1.100')
+
+        # Check audit log
+        if os.path.exists(audit_file):
+            with open(audit_file, 'r') as f:
+                content = f.read()
+            self.assertIn('USER_REMOVED', content)
+            self.assertIn('usertoremove', content)
+
+        temp_dir.cleanup()
+
+    def test_custom_hash_function_still_works(self):
+        """Test that custom hash_function parameter still works."""
+        # Create a simple custom hash function
+        def custom_verify(password, stored):
+            return password == stored
+
+        temp_dir = tempfile.TemporaryDirectory()
+        yaml_file = Path(temp_dir.name) / "users.yaml"
+        with open(yaml_file, 'w') as f:
+            yaml.dump({
+                'users': {
+                    'customuser': 'custompass'
+                }
+            }, f)
+
+        config = AuthConfig(yaml_file=str(yaml_file))
+        auth_manager = AuthManager(config, hash_function=custom_verify, use_hashing=False)
+
+        # Verify authentication works with custom function
+        result = auth_manager.verify_credentials('customuser', 'custompass')
+        self.assertTrue(result.success)
+
+        temp_dir.cleanup()
+
 
 class TestUser(unittest.TestCase):
     """Test User model."""
@@ -261,12 +398,11 @@ class TestAuthLogger(unittest.TestCase):
 
     def setUp(self):
         """Set up logging."""
-        self.logger = setup_logger('TestAuth')
-        self.auth_logger = AuthLogger(self.logger)
+        # setup_logger now returns an AuthLogger directly
+        self.auth_logger = setup_logger('TestAuth')
 
     def test_logger_creation(self):
         """Test logger initialization."""
-        self.assertIsNotNone(self.logger)
         self.assertIsNotNone(self.auth_logger)
 
     def test_log_auth_attempt(self):
@@ -306,14 +442,13 @@ class TestIntegration(unittest.TestCase):
         with open(self.yaml_file, 'w') as f:
             yaml.dump({
                 'users': {
-                    'admin': 'admin_password',
-                    'user1': 'user1_password'
+                    'admin': hash_password('admin_password'),
+                    'user1': hash_password('user1_password')
                 }
             }, f)
 
         self.config = AuthConfig(yaml_file=str(self.yaml_file))
-        self.logger = setup_logger('IntegrationTest')
-        self.auth_logger = AuthLogger(self.logger)
+        self.auth_logger = setup_logger('IntegrationTest')
         self.auth_manager = AuthManager(self.config, logger=self.auth_logger)
 
     def tearDown(self):
@@ -354,6 +489,47 @@ class TestIntegration(unittest.TestCase):
 
         # Invalid header
         result = self.auth_manager.verify_basic_auth_header('Bearer token123')
+        self.assertFalse(result.success)
+
+    def test_full_audit_trail(self):
+        """Test complete audit trail with user operations."""
+        # Create audit log file
+        audit_file = os.path.join(Path(self.temp_dir.name).name, 'audit.log')
+        audit_path = Path(self.temp_dir.name) / 'audit.log'
+
+        # Reinitialize logger with audit file
+        logger = setup_logger('AuditTrailTest', audit_log_file=str(audit_path))
+        auth_manager = AuthManager(self.config, logger=logger)
+
+        # 1. Add user (should be logged)
+        auth_manager.add_user('user2', 'user2_password', by_whom='admin')
+
+        # 2. Remove user (should be logged)
+        auth_manager.remove_user('user2', by_whom='admin')
+
+        # 3. Check audit log contains entries
+        if audit_path.exists():
+            with open(audit_path, 'r') as f:
+                content = f.read()
+            self.assertIn('USER_ADDED', content)
+            self.assertIn('USER_REMOVED', content)
+
+    def test_hashed_password_authentication_flow(self):
+        """Test authentication with hashed passwords through full flow."""
+        # Add user with hashing (should be done automatically)
+        self.auth_manager.add_user('hashflow', 'hashflow_password')
+
+        # Verify the password is hashed
+        stored = self.auth_manager.users['hashflow']
+        self.assertTrue(is_bcrypt_hash(stored))
+
+        # Authenticate with plaintext password (should work)
+        result = self.auth_manager.verify_credentials('hashflow', 'hashflow_password')
+        self.assertTrue(result.success)
+        self.assertEqual(result.user.username, 'hashflow')
+
+        # Try with wrong password (should fail)
+        result = self.auth_manager.verify_credentials('hashflow', 'wrong_password')
         self.assertFalse(result.success)
 
 

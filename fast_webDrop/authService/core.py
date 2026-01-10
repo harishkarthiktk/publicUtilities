@@ -12,12 +12,10 @@ try:
     from .models import User, AuthResult
     from .config import AuthConfig
     from .logger import setup_logger, AuthLogger
-    from .hashing import hash_password, verify_password, is_bcrypt_hash
 except ImportError:
     from models import User, AuthResult
     from config import AuthConfig
     from logger import setup_logger, AuthLogger
-    from hashing import hash_password, verify_password, is_bcrypt_hash
 
 
 class AuthManager:
@@ -40,8 +38,7 @@ class AuthManager:
         self,
         config: AuthConfig,
         logger: Optional[AuthLogger] = None,
-        hash_function: Optional[callable] = None,
-        use_hashing: bool = True
+        hash_function: Optional[callable] = None
     ):
         """
         Initialize authentication manager.
@@ -51,19 +48,17 @@ class AuthManager:
             logger: AuthLogger instance (creates default if not provided)
             hash_function: Function to verify hashed passwords
                           (for bcrypt, Argon2, etc.)
-            use_hashing: If True, use built-in bcrypt hashing
         """
         self.config = config
         self.hash_function = hash_function
-        self.use_hashing = use_hashing
         self.config.validate()
 
         # Set up logging
         if logger:
             self.logger = logger
         else:
-            # setup_logger now returns an AuthLogger directly
-            self.logger = setup_logger("AuthManager")
+            default_logger = setup_logger("AuthManager")
+            self.logger = AuthLogger(default_logger)
 
         # Load users from config
         self.users = self.config.get_users()
@@ -184,26 +179,19 @@ class AuthManager:
 
     def _compare_passwords(self, provided: str, stored: str) -> bool:
         """
-        Compare passwords using bcrypt verification.
+        Compare passwords (plaintext comparison).
 
-        Requires passwords to be stored as bcrypt hashes. Plaintext passwords
-        are rejected with a clear error message.
+        Note: This is insecure for production. Use bcrypt or Argon2
+        for real implementations.
 
         Args:
             provided: Password provided by user
-            stored: Bcrypt hash stored in system
+            stored: Password stored in system
 
         Returns:
-            True if the password matches the hash, False otherwise
+            True if passwords match, False otherwise
         """
-        # Require bcrypt hash format
-        if not is_bcrypt_hash(stored):
-            self.logger.log_error(
-                f"Plaintext password detected for verification. Run migration script: python scripts/migrate_passwords.py"
-            )
-            return False
-
-        return verify_password(provided, stored)
+        return provided == stored
 
     def reload_users(self) -> None:
         """Reload users from configuration source."""
@@ -211,24 +199,15 @@ class AuthManager:
         self.users = self.config.get_users()
         self.logger.log_config_loaded(len(self.users), "AuthConfig (reloaded)")
 
-    def add_user(
-        self,
-        username: str,
-        password: str,
-        by_whom: str = "system",
-        ip_address: str = "unknown"
-    ) -> bool:
+    def add_user(self, username: str, password: str) -> bool:
         """
         Add a user to the in-memory configuration.
 
-        Passwords are automatically hashed using bcrypt if use_hashing is True.
         Note: This does not persist to YAML or database.
 
         Args:
             username: Username to add
             password: Password for the user
-            by_whom: Who is performing this action (for audit logging)
-            ip_address: IP address of the request (for audit logging)
 
         Returns:
             True if user added successfully, False if user already exists
@@ -236,23 +215,10 @@ class AuthManager:
         if username in self.users:
             return False
 
-        # Hash password if using built-in hashing
-        if self.use_hashing:
-            password = hash_password(password)
-
         self.users[username] = password
-
-        # Log the audit event
-        self.logger.log_user_added(username, by_whom, ip_address)
-
         return True
 
-    def remove_user(
-        self,
-        username: str,
-        by_whom: str = "system",
-        ip_address: str = "unknown"
-    ) -> bool:
+    def remove_user(self, username: str) -> bool:
         """
         Remove a user from the in-memory configuration.
 
@@ -260,8 +226,6 @@ class AuthManager:
 
         Args:
             username: Username to remove
-            by_whom: Who is performing this action (for audit logging)
-            ip_address: IP address of the request (for audit logging)
 
         Returns:
             True if user removed, False if user doesn't exist
@@ -270,10 +234,6 @@ class AuthManager:
             return False
 
         del self.users[username]
-
-        # Log the audit event
-        self.logger.log_user_removed(username, by_whom, ip_address)
-
         return True
 
     def list_users(self) -> list:

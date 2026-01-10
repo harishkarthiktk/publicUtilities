@@ -2,10 +2,28 @@
 
 Get authentication up and running in **5 minutes**.
 
+## 0️⃣ Install Dependencies
+
+First, install required packages:
+
+```bash
+# Option 1: From requirements.txt
+pip install -r requirements.txt
+
+# Option 2: Manually install
+pip install bcrypt>=4.0.1 pyyaml>=6.0
+```
+
 ## 1️⃣ Copy AuthTemplate to Your Project
 
 ```bash
 cp -r authtemplate/ /path/to/your/project/
+```
+
+Or install as a package:
+
+```bash
+pip install -e .
 ```
 
 ## 2️⃣ Create Configuration File
@@ -14,10 +32,20 @@ Create `config/users.yaml`:
 
 ```yaml
 users:
-  admin: admin_password
-  user1: user1_password
-  developer: dev_secure_password
+  admin: $2b$12$R9h7cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jKMUm
+  user1: $2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYkZH8BgGkK
+  developer: $2b$12$uVPJhDDZPjpCxKI/3KX1QOHs.XdkFKC8KbIvlvxdR0KHAhAZ2Pkyq
 ```
+
+⚠️ **Note**: Starting with v1.0+, all passwords must be bcrypt hashes. Passwords are automatically hashed when added at runtime.
+
+If you have existing plaintext passwords, use the migration script:
+
+```bash
+python scripts/migrate_passwords.py config/users.yaml
+```
+
+See [MIGRATION.md](MIGRATION.md) for details.
 
 Or use environment variables:
 
@@ -235,23 +263,57 @@ print(info)
 # Output: {'username': 'admin', 'exists': True, 'is_active': True}
 ```
 
-## 6️⃣ Next Steps
+## 6️⃣ Enable Audit Logging (Optional)
 
-1. **Security**: Hash passwords in production using bcrypt
-   ```python
-   import bcrypt
-   hashed = bcrypt.hashpw(b'password', bcrypt.gensalt())
+Track all user management operations for security and compliance:
+
+```python
+from authtemplate import setup_logger, AuthManager, AuthConfig
+
+# Create logger with audit log
+logger = setup_logger(
+    name='MyApp',
+    log_file='logs/auth.log',
+    audit_log_file='logs/audit.log'  # Separate audit trail
+)
+
+config = AuthConfig(yaml_file='config/users.yaml')
+auth_manager = AuthManager(config, logger=logger)
+
+# User operations are automatically logged to audit.log
+auth_manager.add_user('newuser', 'password', by_whom='admin')
+auth_manager.remove_user('olduser', by_whom='admin')
+```
+
+View audit logs:
+```bash
+# See all user additions
+grep "USER_ADDED" logs/audit.log
+
+# See changes by admin
+grep "by=admin" logs/audit.log
+```
+
+## 7️⃣ Next Steps
+
+1. **Migrate Existing Passwords** (if needed)
+   ```bash
+   python scripts/migrate_passwords.py config/users.yaml
    ```
 
-2. **Logging**: Configure logging to file
+2. **Enable Audit Logging** (for compliance)
    ```python
-   from authtemplate import setup_logger
-   logger = setup_logger('MyApp', log_file='logs/auth.log')
+   logger = setup_logger(..., audit_log_file='logs/audit.log')
    ```
 
 3. **Rate Limiting**: Add protection against brute force attacks
+
 4. **HTTPS**: Always use HTTPS in production
-5. **Roles**: Add role-based access control to your User model
+
+5. **Roles**: Add role-based access control
+   ```python
+   user.roles = ['admin', 'manager']
+   ```
 
 ## 📚 Learn More
 

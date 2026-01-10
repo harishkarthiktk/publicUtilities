@@ -5,12 +5,14 @@ A **framework-agnostic**, **production-ready** authentication system that can be
 **Table of Contents:**
 - [Overview](#overview)
 - [Features](#features)
+- [Installation](#installation)
 - [Quick Start](#quick-start)
 - [Architecture](#architecture)
 - [Configuration](#configuration)
 - [Framework Integration](#framework-integration)
 - [API Reference](#api-reference)
 - [Security Considerations](#security-considerations)
+- [Audit Logging](#audit-logging)
 - [Advanced Usage](#advanced-usage)
 - [Troubleshooting](#troubleshooting)
 
@@ -65,21 +67,45 @@ authtemplate/
 
 ---
 
-## Quick Start
+## Installation
 
-### Installation
+### 1. Install Dependencies
 
-**Option 1: Copy the module to your project**
+AuthService requires `bcrypt` and `PyYAML`. Install them:
+
+```bash
+pip install -r requirements.txt
+```
+
+Or individually:
+
+```bash
+pip install bcrypt>=4.0.1 pyyaml>=6.0
+```
+
+### 2. Copy Module to Your Project
+
+**Option A: Copy the module**
 
 ```bash
 cp -r authtemplate/ /path/to/your/project/
 ```
 
-**Option 2: Install via pip (if published)**
+**Option B: Install as package**
 
 ```bash
-pip install authtemplate
+pip install -e .
 ```
+
+**Option C: Install from pip (if published)**
+
+```bash
+pip install authService
+```
+
+---
+
+## Quick Start
 
 ### Minimal Example (Python)
 
@@ -654,28 +680,54 @@ https://user:pass@example.com
 http://user:pass@example.com
 ```
 
-#### 2. **Hash Passwords in Production**
+#### 2. **Built-in Password Hashing (Bcrypt)**
 
-The default implementation stores plaintext passwords. For production, use bcrypt or Argon2:
+**As of v1.0.0+, bcrypt password hashing is enabled by default.** All passwords are automatically hashed and verified using bcrypt with 12 salt rounds.
+
+When you add users:
 
 ```python
-import bcrypt
-
-def hash_password(password):
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-
-def verify_password(provided, hashed):
-    return bcrypt.checkpw(provided.encode(), hashed)
-
-config = AuthConfig(yaml_file='users.yaml')
-auth_manager = AuthManager(config, hash_function=verify_password)
+auth_manager.add_user('admin', 'my_password')
+# Password is automatically hashed and stored as: $2b$12$...
 ```
 
-Update `users.yaml`:
+When users authenticate:
+
+```python
+result = auth_manager.verify_credentials('admin', 'my_password')
+# Password is automatically verified against the bcrypt hash
+```
+
+**For existing projects:** If you have plaintext passwords in YAML files, run the migration script:
+
+```bash
+python scripts/migrate_passwords.py your_users.yaml
+```
+
+See [MIGRATION.md](MIGRATION.md) for detailed migration instructions.
+
+**Custom hash functions:** If you need a different hashing algorithm, you can still provide a custom function:
+
+```python
+from argon2 import PasswordHasher
+
+hasher = PasswordHasher()
+
+def verify_with_argon2(password, hash):
+    try:
+        hasher.verify(hash, password)
+        return True
+    except:
+        return False
+
+auth_manager = AuthManager(config, hash_function=verify_with_argon2, use_hashing=False)
+```
+
+Your `users.yaml` should contain bcrypt hashes:
 
 ```yaml
 users:
-  admin: $2b$12$R9h7cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jKMUm  # hashed password
+  admin: $2b$12$R9h7cIPz0gi.URNNX3kh2OPST9/PgBkqquzi.Ss7KIUgO2t0jKMUm
 ```
 
 #### 3. **Store Credentials Securely**
@@ -744,6 +796,78 @@ from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app, origins=["https://trusted-domain.com"])
+```
+
+---
+
+## Audit Logging
+
+### Track User Operations
+
+AuthService provides comprehensive audit logging to track all user management operations. This is essential for security and compliance.
+
+### Enable Audit Logging
+
+```python
+from authtemplate import AuthManager, AuthConfig, setup_logger
+
+# Create logger with separate audit log file
+logger = setup_logger(
+    name="AuthManager",
+    log_file="logs/auth.log",
+    audit_log_file="logs/audit.log"  # Separate audit trail
+)
+
+config = AuthConfig(yaml_file='users.yaml')
+auth_manager = AuthManager(config, logger=logger)
+
+# Add user (automatically logged to audit.log)
+auth_manager.add_user('newuser', 'password', by_whom='admin', ip_address='192.168.1.1')
+
+# Remove user (automatically logged to audit.log)
+auth_manager.remove_user('olduser', by_whom='admin', ip_address='192.168.1.1')
+```
+
+### Audit Log Format
+
+Audit log entries include:
+
+```
+[AUDIT] 2025-01-10 19:30:45 - USER_ADDED: username=newuser, by=admin, ip=192.168.1.1
+[AUDIT] 2025-01-10 19:31:20 - USER_REMOVED: username=olduser, by=admin, ip=192.168.1.1
+[AUDIT] 2025-01-10 19:32:10 - PASSWORD_CHANGED: username=existinguser, by=user, ip=192.168.1.50
+```
+
+### Audit Log Events
+
+The following events are automatically logged:
+
+- **USER_ADDED** - When a new user is added
+- **USER_REMOVED** - When a user is removed
+- **USER_MODIFIED** - When user properties are changed
+- **PASSWORD_CHANGED** - When a password is changed
+
+Each entry includes:
+- **Timestamp** - When the action occurred
+- **Event type** - What operation was performed
+- **username** - The user affected
+- **by** - Who performed the action (for accountability)
+- **ip** - Source IP address (for tracking)
+
+### Filtering and Analyzing Audit Logs
+
+```bash
+# View all user additions
+grep "USER_ADDED" logs/audit.log
+
+# View changes by admin
+grep "by=admin" logs/audit.log
+
+# View all operations on a specific user
+grep "username=admin" logs/audit.log
+
+# Parse JSON-style output (with custom processing)
+cat logs/audit.log | grep USER_ADDED | wc -l  # Count additions
 ```
 
 ---
