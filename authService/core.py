@@ -11,13 +11,15 @@ from datetime import datetime
 try:
     from .models import User, AuthResult
     from .config import AuthConfig
-    from .logger import setup_logger, AuthLogger
+    from .logger import setup_logger, setup_logger_from_config, AuthLogger
     from .hashing import hash_password, verify_password, is_bcrypt_hash
+    from .appconfig import AppConfig
 except ImportError:
     from models import User, AuthResult
     from config import AuthConfig
-    from logger import setup_logger, AuthLogger
+    from logger import setup_logger, setup_logger_from_config, AuthLogger
     from hashing import hash_password, verify_password, is_bcrypt_hash
+    from appconfig import AppConfig
 
 
 class AuthManager:
@@ -41,7 +43,8 @@ class AuthManager:
         config: AuthConfig,
         logger: Optional[AuthLogger] = None,
         hash_function: Optional[callable] = None,
-        use_hashing: bool = True
+        use_hashing: bool = True,
+        app_config: Optional[AppConfig] = None
     ):
         """
         Initialize authentication manager.
@@ -52,10 +55,12 @@ class AuthManager:
             hash_function: Function to verify hashed passwords
                           (for bcrypt, Argon2, etc.)
             use_hashing: If True, use built-in bcrypt hashing
+            app_config: AppConfig instance with centralized settings (optional)
         """
         self.config = config
         self.hash_function = hash_function
         self.use_hashing = use_hashing
+        self.app_config = app_config
         self.config.validate()
 
         # Set up logging
@@ -63,11 +68,45 @@ class AuthManager:
             self.logger = logger
         else:
             # setup_logger now returns an AuthLogger directly
-            self.logger = setup_logger("AuthManager")
+            if app_config:
+                self.logger = setup_logger_from_config(app_config)
+            else:
+                self.logger = setup_logger("AuthManager")
 
         # Load users from config
         self.users = self.config.get_users()
         self.logger.log_config_loaded(len(self.users), "AuthConfig")
+
+    @staticmethod
+    def from_config(app_config: AppConfig) -> "AuthManager":
+        """
+        Create AuthManager from centralized application config.
+
+        Initializes AuthManager with all settings loaded from AppConfig,
+        including user configuration, logger settings, and hashing options.
+
+        Args:
+            app_config: AppConfig instance with loaded configuration
+
+        Returns:
+            Configured AuthManager instance
+
+        Raises:
+            FileNotFoundError: If config files do not exist
+        """
+        # Load user configuration
+        user_config = AuthConfig(yaml_file=app_config.get_users_config_file())
+
+        # Setup logger from config
+        logger = setup_logger_from_config(app_config)
+
+        # Create auth manager with all config settings
+        return AuthManager(
+            config=user_config,
+            logger=logger,
+            use_hashing=app_config.use_hashing(),
+            app_config=app_config
+        )
 
     def verify_credentials(
         self,

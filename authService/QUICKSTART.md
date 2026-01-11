@@ -26,7 +26,53 @@ Or install as a package:
 pip install -e .
 ```
 
-## 2️⃣ Create Configuration File
+## 2️⃣ Configure Application Settings
+
+Configure logging, authentication, and other settings:
+
+**Copy the template:**
+
+```bash
+cp config/app_config.yaml config/app_config.yaml
+```
+
+**Customize `config/app_config.yaml`:**
+
+The configuration file includes sections for:
+- **Logging**: Log file paths, formats, levels
+- **Audit Logging**: Track user operations
+- **Authentication**: Password hashing settings (bcrypt rounds)
+- **Security**: Rate limiting, session timeouts
+- **Framework Settings**: Flask, Django, Express, Spring Boot
+
+See [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) for all available options.
+
+**Use the config in your code:**
+
+```python
+from authtemplate import AppConfig, AuthManager
+
+# Load application configuration
+app_config = AppConfig('config/app_config.yaml')
+
+# Initialize AuthManager with all settings
+auth_manager = AuthManager.from_config(app_config)
+```
+
+For different environments, use environment-specific configs:
+
+```bash
+# Development (verbose logging, faster hashing)
+export AUTH_CONFIG=config/app_config.dev.yaml
+
+# Testing (minimal output, fast hashing)
+export AUTH_CONFIG=config/app_config.test.yaml
+
+# Production (standard settings)
+export AUTH_CONFIG=config/app_config.yaml
+```
+
+## 3️⃣ Create Users Configuration File
 
 Create `config/users.yaml`:
 
@@ -54,7 +100,7 @@ export AUTH_USER=admin
 export AUTH_PASSWORD=admin_password
 ```
 
-## 3️⃣ Choose Your Framework
+## 4️⃣ Choose Your Framework
 
 ### Flask (5 lines of code)
 
@@ -182,7 +228,7 @@ public class Controller {
 }
 ```
 
-## 4️⃣ Test Your Setup
+## 5️⃣ Test Your Setup
 
 ### Using curl
 
@@ -217,7 +263,7 @@ response = requests.get(
 print(response.json())  # {'user': 'admin'}
 ```
 
-## 5️⃣ Common Tasks
+## 6️⃣ Common Tasks
 
 ### Add User at Runtime
 
@@ -263,7 +309,7 @@ print(info)
 # Output: {'username': 'admin', 'exists': True, 'is_active': True}
 ```
 
-## 6️⃣ Enable Audit Logging (Optional)
+## 7️⃣ Enable Audit Logging (Optional)
 
 Track all user management operations for security and compliance:
 
@@ -294,7 +340,7 @@ grep "USER_ADDED" logs/audit.log
 grep "by=admin" logs/audit.log
 ```
 
-## 7️⃣ Next Steps
+## 8️⃣ Next Steps
 
 1. **Migrate Existing Passwords** (if needed)
    ```bash
@@ -318,9 +364,11 @@ grep "by=admin" logs/audit.log
 ## 📚 Learn More
 
 - **Full Documentation**: See `README.md`
+- **Configuration Options**: See `CONFIG_REFERENCE.md` for all settings
 - **Framework Examples**: Check `framework_examples/` directory
 - **Testing**: See `tests/test_auth.py` for test examples
 - **API Reference**: Full API documentation in `README.md`
+- **Password Migration**: See `MIGRATION.md` for migrating plaintext passwords
 
 ## 🚀 You're Done!
 

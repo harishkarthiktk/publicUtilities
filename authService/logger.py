@@ -15,7 +15,12 @@ def setup_logger(
     level: str = "INFO",
     max_bytes: int = 5242880,  # 5MB
     backup_count: int = 3,
-    audit_log_file: Optional[str] = None
+    audit_log_file: Optional[str] = None,
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    date_format: str = "%Y-%m-%d %H:%M:%S",
+    audit_format: str = "[AUDIT] %(asctime)s - %(message)s",
+    audit_max_bytes: int = 5242880,
+    audit_backup_count: int = 5
 ) -> "AuthLogger":
     """
     Set up a logger for the authentication system.
@@ -27,6 +32,11 @@ def setup_logger(
         max_bytes: Maximum log file size before rotation
         backup_count: Number of backup log files to keep
         audit_log_file: Optional separate file for audit logs
+        log_format: Format string for log messages
+        date_format: Format string for dates in logs
+        audit_format: Format string for audit log messages
+        audit_max_bytes: Maximum audit log file size before rotation
+        audit_backup_count: Number of backup audit log files to keep
 
     Returns:
         Configured AuthLogger instance with audit support
@@ -39,8 +49,8 @@ def setup_logger(
 
     # Create formatters
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        log_format,
+        datefmt=date_format
     )
 
     # Console handler
@@ -72,14 +82,14 @@ def setup_logger(
             audit_path.parent.mkdir(parents=True, exist_ok=True)
 
             audit_formatter = logging.Formatter(
-                '[AUDIT] %(asctime)s - %(message)s',
-                datefmt='%Y-%m-%d %H:%M:%S'
+                audit_format,
+                datefmt=date_format
             )
 
             audit_handler = logging.handlers.RotatingFileHandler(
                 audit_log_file,
-                maxBytes=max_bytes,
-                backupCount=backup_count
+                maxBytes=audit_max_bytes,
+                backupCount=audit_backup_count
             )
             audit_handler.setFormatter(audit_formatter)
             audit_handler.setLevel(logging.INFO)
@@ -256,3 +266,37 @@ class AuthLogger:
         """
         message = f"PASSWORD_CHANGED: username={username}, by={by_whom}, ip={ip_address}"
         self._log_audit(message)
+
+
+def setup_logger_from_config(app_config: "AppConfig") -> AuthLogger:
+    """
+    Initialize logger from centralized application config.
+
+    Loads all logging settings from AppConfig instance, including:
+    - Log file path and format
+    - Audit log file path and format
+    - Rotation settings (max_bytes, backup_count)
+    - Log level
+
+    Args:
+        app_config: AppConfig instance with loaded configuration
+
+    Returns:
+        Configured AuthLogger instance
+
+    Raises:
+        FileNotFoundError: If config file does not exist
+    """
+    return setup_logger(
+        name=app_config.get_app_name(),
+        log_file=app_config.get_log_file(),
+        level=app_config.get_log_level(),
+        max_bytes=app_config.get_log_max_bytes(),
+        backup_count=app_config.get_log_backup_count(),
+        audit_log_file=app_config.get_audit_log_file(),
+        log_format=app_config.get_log_format(),
+        date_format=app_config.get_log_date_format(),
+        audit_format=app_config.get_audit_log_format(),
+        audit_max_bytes=app_config.get_audit_log_max_bytes(),
+        audit_backup_count=app_config.get_audit_log_backup_count()
+    )

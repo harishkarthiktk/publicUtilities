@@ -242,9 +242,57 @@ AuthManager
 
 ## Configuration
 
-### YAML File Configuration
+### Centralized Configuration (Recommended)
 
-Create `users.yaml`:
+AuthService now supports centralized configuration management through `app_config.yaml`. This allows you to configure logging, authentication, security, and framework-specific settings in a single file.
+
+**Quick Start:**
+
+1. Copy the template configuration:
+```bash
+cp config/app_config.yaml config/app_config.yaml
+```
+
+2. Customize settings as needed (see [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) for all options)
+
+3. Initialize AuthManager from config:
+```python
+from authtemplate import AppConfig, AuthManager
+
+# Load configuration
+app_config = AppConfig('config/app_config.yaml')
+
+# Initialize AuthManager with config
+auth_manager = AuthManager.from_config(app_config)
+```
+
+**What You Can Configure:**
+
+- **Logging**: Log file paths, formats, rotation settings, log levels
+- **Audit Logging**: Separate audit log configuration and enablement
+- **Authentication**: Bcrypt rounds, session timeouts, HTTPS requirements
+- **Error Codes**: Customize error response codes
+- **Rate Limiting**: Brute force protection settings
+- **Framework Settings**: Flask, Django, Express, Spring Boot configurations
+
+**Environment-Specific Configs:**
+
+```bash
+# Development
+export AUTH_CONFIG=config/app_config.dev.yaml
+
+# Testing
+export AUTH_CONFIG=config/app_config.test.yaml
+
+# Production (default)
+export AUTH_CONFIG=config/app_config.yaml
+```
+
+See [CONFIG_REFERENCE.md](CONFIG_REFERENCE.md) for complete configuration options and examples.
+
+### YAML File Configuration (User Credentials)
+
+Create `users.yaml` for user credentials:
 
 ```yaml
 # Method 1: Using 'users' key (recommended)

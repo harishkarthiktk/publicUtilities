@@ -2,28 +2,35 @@
 
 import bcrypt
 import os
-from typing import Dict
+from typing import Dict, Optional, List
 import yaml
 
 
-def hash_password(password: str) -> str:
+def hash_password(password: str, rounds: int = 12) -> str:
     """
-    Hash a password using bcrypt with default rounds (12).
+    Hash a password using bcrypt with configurable rounds.
 
     Args:
         password: The plaintext password to hash
+        rounds: Number of bcrypt salt rounds (10-13 recommended)
+               Higher values are more secure but slower
+               Default: 12 (standard for most applications)
 
     Returns:
         The bcrypt hash of the password as a string
 
     Raises:
         TypeError: If password is not a string
+        ValueError: If rounds is not in valid range (4-31)
     """
     if not isinstance(password, str):
         raise TypeError("Password must be a string")
 
-    # bcrypt.gensalt() uses 12 rounds by default
-    salt = bcrypt.gensalt()
+    if not isinstance(rounds, int) or rounds < 4 or rounds > 31:
+        raise ValueError("Rounds must be an integer between 4 and 31")
+
+    # Create salt with specified rounds
+    salt = bcrypt.gensalt(rounds=rounds)
     # bcrypt.hashpw requires bytes
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
@@ -108,7 +115,12 @@ def migrate_users_dict(users: Dict[str, str]) -> Dict[str, str]:
     return migrated
 
 
-def migrate_yaml_file(yaml_path: str, backup: bool = True) -> None:
+def migrate_yaml_file(
+    yaml_path: str,
+    backup: bool = True,
+    reserved_keys: Optional[List[str]] = None,
+    rounds: int = 12
+) -> None:
     """
     Migrate a YAML users file from plaintext to bcrypt hashed passwords.
 
@@ -117,12 +129,17 @@ def migrate_yaml_file(yaml_path: str, backup: bool = True) -> None:
     Args:
         yaml_path: Path to the YAML file to migrate
         backup: If True, create a backup file (default True)
+        reserved_keys: List of keys to skip (not treated as usernames)
+                      Default: ['auth_type', 'log_level', 'log_file', 'require_https']
+        rounds: Number of bcrypt salt rounds to use for new hashes (default 12)
 
     Raises:
         FileNotFoundError: If the YAML file doesn't exist
         IOError: If backup or write operations fail
         yaml.YAMLError: If YAML parsing fails
     """
+    if reserved_keys is None:
+        reserved_keys = ['auth_type', 'log_level', 'log_file', 'require_https']
     if not os.path.exists(yaml_path):
         raise FileNotFoundError(f"YAML file not found: {yaml_path}")
 
@@ -151,10 +168,10 @@ def migrate_yaml_file(yaml_path: str, backup: bool = True) -> None:
         # Flat structure - migrate all non-reserved keys
         migrated = {}
         for key, value in config.items():
-            if key not in ['auth_type', 'log_level', 'log_file', 'require_https']:
+            if key not in reserved_keys:
                 # Assume it's a username:password pair
                 if isinstance(value, str):
-                    migrated[key] = hash_password(value) if not is_bcrypt_hash(value) else value
+                    migrated[key] = hash_password(value, rounds) if not is_bcrypt_hash(value) else value
                 else:
                     migrated[key] = value
             else:
