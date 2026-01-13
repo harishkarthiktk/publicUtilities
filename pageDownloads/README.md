@@ -1,72 +1,99 @@
 # pageDownloads
 
-## Purpose
-This tool downloads and saves webpages as Markdown files for local knowledge base augmentation. It supports both synchronous (Selenium-based) and asynchronous (Playwright-based) versions for processing single or multiple URLs. The async version is better for batch processing Markdown files with links, while the sync version handles plain URL lists flexibly.
+Web scraping utility suite for downloading and processing web content.
 
-Note: While straightforward browser "Save As" works for single pages, this automates batch downloading—though it may take longer to set up!
+## Tools
+
+- **sync_page_downloader.py** - Synchronous page downloader (Selenium) for single/batch URL processing
+- **async_page_downloader.py** - Asynchronous page downloader (Playwright) for batch Markdown files
+- **link_extractor.py** - Extract links from MHTML archive files
+- **metadata_fetcher.py** - Extract Open Graph, Twitter Card, and SEO metadata from URLs
+
+## Workflows
+
+**Simple Download**
+```
+URL/URLs → sync_page_downloader.py → Markdown files
+```
+Quick single-page or small batch downloads.
+
+**Batch Download**
+```
+Markdown list (- [title](url)) → async_page_downloader.py → Markdown files
+```
+Efficient parallel downloading of multiple pages.
+
+**MHTML Exploration → Download**
+```
+MHTML file → link_extractor.py → links.txt → async_page_downloader.py → Downloaded pages
+```
+Explore saved websites and download linked pages.
+
+**Content Discovery → Analysis → Download**
+```
+URLs → metadata_fetcher.py → CSV (titles, descriptions, categories)
+→ [filter/curate] → markdown list
+→ async_page_downloader.py → local knowledge base
+```
+Research and curate content before downloading.
 
 ## Installation
-1. Clone or navigate to this directory.
-2. Install dependencies:
-   - For `main.py` (sync): `pip install -r requirements.txt` (includes selenium, html2text, tqdm).
-   - For `main_asyncio.py` (async): `pip install -r requirements.txt` (includes playwright, markdownify, beautifulsoup4, tqdm). Then run `playwright install` for browser binaries.
-3. Ensure Chrome is installed for Selenium (or use webdriver-manager if added).
+
+```bash
+pip install -r requirements.txt
+playwright install  # Required for async_page_downloader.py only
+```
 
 ## Usage
 
-### Synchronous Version (main.py)
-Processes plain text files with URLs (one per line) or a single URL. Uses Selenium for rendering dynamic content.
+### Page Downloader (Synchronous)
 
-Options:
-```
-  -h, --help            show this help message and exit
-  -f FILE, --file FILE  Path to a text file with URLs, one per line.
-  -u URL, --url URL     A single URL to process.
-  -o OUTPUT_FOLDER, --output-folder OUTPUT_FOLDER
-                        Folder to save the output files (default: outputs).
-  -t, --title           Use webpage title for output filename instead of URL-derived.
+```bash
+python sync_page_downloader.py -f urls.txt -o outputs -t
+python sync_page_downloader.py -u https://example.com -o outputs
 ```
 
-Example:
-```
-python main.py -f urls.txt -o my_downloads -t
-```
-- Outputs: `.md` files in `outputs/` (or specified folder), with logging to `logs.txt`.
-- Filename: URL-based by default (e.g., `https_example_com_page.md`); title-based if `-t` used.
+Options: `-f FILE`, `-u URL`, `-o OUTPUT_FOLDER`, `-t` (use page title as filename)
 
-### Asynchronous Version (main_asyncio.py)
-Processes Markdown files with links in format `- [title](url)` or plain URLs (one per line, URL as title fallback). Uses Playwright for efficient async loading.
+### Async Downloader (Batch)
 
-Options:
-```
-  -h, --help            show this help message and exit
-  -f FILE, --input-file FILE
-                        Path to input Markdown file (required, default: ./input.md).
-  -o OUTPUT_FOLDER, --output-folder OUTPUT_FOLDER
-                        Folder to save the output files (default: ./asyncio_output).
+```bash
+python async_page_downloader.py -f links.md -o asyncio_output
 ```
 
-Example:
-```
-python main_asyncio.py -f links.md -o batch_downloads
-```
-- Outputs: `.md` files in `./asyncio_output/` (or specified), each prefixed with `# Title` and `*Source: URL*`.
-- Filename: Sanitized page title from `<title>` tag.
-- Progress: tqdm bar for sequential processing.
+Supports Markdown format: `- [title](url)` or plain URLs (one per line)
 
-Sample input for async (`testdata.md`):
-```
-- [Example Page](https://example.com)
-https://another-site.com
+### Link Extractor
+
+```bash
+python link_extractor.py -f ./mhtml_folder -o links.txt
 ```
 
-## Output Format
-All versions save rendered page content as Markdown (.md files):
-- Extracts body content, converts HTML to MD.
-- Sanitizes filenames to avoid filesystem issues.
-- Includes source URL in async version for traceability.
+Extracts links from MHTML archive files with optional filtering.
 
-## Disclaimer
-Web scraping and downloading may breach targeted websites' T&Cs. This tool is for personal, ethical use only. Respect robots.txt, rate limits, and user-agent policies. Liability rests with the user.
+### Metadata Fetcher
 
----
+```bash
+python metadata_fetcher.py -f urls.txt -o output.csv
+```
+
+Reads `urls.txt`, outputs metadata to `output.csv`.
+
+## Configuration
+
+All settings in `config.yaml`:
+- Selenium/Playwright options (timeouts, headless mode, concurrency)
+- Output folders and defaults
+- Logging level and format
+- Rate limiting and HTTP headers
+- Meta properties to extract
+- Content classification categories
+
+CLI arguments override config.yaml values.
+
+## Output
+
+- Downloaded pages saved as Markdown (.md files)
+- Metadata exported as CSV
+- Logs written to `logs/logs.txt` (configurable)
+- Filenames sanitized automatically

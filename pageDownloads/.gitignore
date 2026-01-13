@@ -5,8 +5,11 @@
 /outputs
 /input
 /env
-/logs
+/logs/
+/logs/*.txt
 url_lists.txt
+asyncio_output/
+*.log
 
 
 ### Python ###

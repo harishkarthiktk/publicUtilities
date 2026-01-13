@@ -1,0 +1,116 @@
+# pageDownloads Configuration File
+# This file contains all configurable settings for the pageDownloads utilities.
+# CLI arguments will override these values.
+
+# Common settings used across all tools
+common:
+  logging:
+    level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    format: "%(asctime)s - %(levelname)s - %(message)s"
+    file: "logs/logs.txt"
+    mode: "a"  # 'a' for append, 'w' for overwrite
+
+  file_sanitization:
+    invalid_chars: '<>:"/\|?*'
+    max_filename_length: 200
+    space_replacement: "_"
+
+# main.py - Synchronous Selenium page downloader
+main:
+  selenium:
+    wait_time: 2  # seconds to wait for dynamic content
+    headless: true
+    disable_gpu: true
+    browser: "chrome"  # chrome, firefox, edge (must be installed)
+
+  output:
+    default_folder: "outputs"
+    use_title_by_default: false
+
+# main_asyncio.py - Asynchronous Playwright page downloader
+main_asyncio:
+  playwright:
+    timeout: 60000  # milliseconds
+    headless: true
+    browser: "chromium"  # chromium, firefox, webkit
+    concurrency_limit: 5  # max concurrent page downloads
+
+  markdown:
+    heading_style: "ATX"  # ATX or UNDERLINED
+    include_source_url: true
+
+  output:
+    default_folder: "./asyncio_output"
+
+# process_mhtml.py - MHTML archive link extractor
+process_mhtml:
+  filters:
+    # List of patterns to include in extracted links (empty = extract all)
+    include_patterns:
+      - "/deluge/help"
+    # Optional: patterns to exclude from extracted links
+    exclude_patterns: []
+
+  file_patterns:
+    - "*.mhtml"
+    - "*.MHTML"
+
+  output:
+    default_folder: "."
+    default_file: "links.txt"
+
+# websiteMetaExtractor/main.py - Meta tag scraper
+meta_extractor:
+  http:
+    user_agent: "Mozilla/5.0"
+    timeout: 10  # seconds
+
+  rate_limiting:
+    same_domain_delay_min: 1  # seconds
+    same_domain_delay_max: 3  # seconds
+    domain_switch_delay: 1    # seconds
+
+  meta_properties:
+    - "og:title"
+    - "og:description"
+    - "og:image"
+    - "og:url"
+    - "og:type"
+    - "og:site_name"
+    - "twitter:title"
+    - "twitter:description"
+    - "twitter:image"
+    - "twitter:card"
+    - "description"
+    - "keywords"
+    - "author"
+    - "article:published_time"
+    - "article:author"
+    - "profile:username"
+
+  input:
+    default_file: "urls.txt"
+
+  output:
+    default_file: "output.csv"
+
+# websiteMetaExtractor/categories.py - Content classifier
+categories:
+  spacy:
+    model: "en_core_web_sm"
+    disabled_components:
+      - "parser"
+      - "ner"
+
+  definitions:
+    HTML: ["html", "markup", "webpage", "web page"]
+    CSS: ["css", "stylesheet", "styling", "flexbox", "grid", "tailwind", "bootstrap"]
+    JavaScript: ["javascript", "js", "es6", "typescript", "node", "nodejs"]
+    React: ["react", "reactjs", "react.js", "nextjs", "next.js", "jsx"]
+    Angular: ["angular", "angularjs"]
+    Vue: ["vue", "vuejs", "vue.js", "nuxt", "nuxtjs"]
+    Technology: ["tech", "software", "ai", "machine", "gadget", "app"]
+    Finance: ["bank", "crypto", "stock", "investment", "loan", "finance"]
+    Health: ["health", "medicine", "fitness", "diet", "mental", "wellness"]
+    Education: ["school", "university", "course", "learning", "tutorial"]
+    Entertainment: ["movie", "music", "game", "tv", "show", "celebrity"]
