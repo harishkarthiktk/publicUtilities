@@ -23,6 +23,7 @@
             <span>FastWebDrop</span>
         </div>
         <div class="app-header__actions">
+            <button class="reset-categories-btn" id="reset-categories-btn" type="button" title="Reset category names">↻</button>
             <select id="export-import-select" class="export-import-select">
                 <option value="">Export / Import</option>
                 <optgroup label="Export">
@@ -41,14 +42,14 @@
     <div class="main-container">
         <div class="content">
             <!-- Search bar -->
-            <div class="search-container" id="search-container" style="display: none;">
+            <div class="search-container" id="search-container">
                 <div style="position: relative;">
                     <span class="search-icon">🔍</span>
                     <input
                         type="text"
                         class="search-bar"
                         id="search-input"
-                        placeholder="Search links by URL or domain..."
+                        placeholder="Search links by URL or domain... (Cmd/Ctrl+K)"
                         aria-label="Search links"
                     >
                 </div>
@@ -113,21 +114,30 @@
             <div class="kanban-board">
                 <div class="kanban-column" data-category="working">
                     <div class="kanban-header">
-                        <h3 class="kanban-title">Working</h3>
+                        <div class="kanban-header__left">
+                            <h3 class="kanban-title">Working</h3>
+                            <button type="button" class="kanban-edit-btn" title="Edit category name">✎</button>
+                        </div>
                         <span class="kanban-count">0</span>
                     </div>
                     <ol class="link-list" id="link-list-working"></ol>
                 </div>
                 <div class="kanban-column" data-category="archived">
                     <div class="kanban-header">
-                        <h3 class="kanban-title">Archived</h3>
+                        <div class="kanban-header__left">
+                            <h3 class="kanban-title">Archived</h3>
+                            <button type="button" class="kanban-edit-btn" title="Edit category name">✎</button>
+                        </div>
                         <span class="kanban-count">0</span>
                     </div>
                     <ol class="link-list" id="link-list-archived"></ol>
                 </div>
                 <div class="kanban-column" data-category="temporary">
                     <div class="kanban-header">
-                        <h3 class="kanban-title">Temporary</h3>
+                        <div class="kanban-header__left">
+                            <h3 class="kanban-title">Temporary</h3>
+                            <button type="button" class="kanban-edit-btn" title="Edit category name">✎</button>
+                        </div>
                         <span class="kanban-count">0</span>
                     </div>
                     <ol class="link-list" id="link-list-temporary"></ol>
@@ -138,6 +148,14 @@
 
     <!-- Toast container -->
     <div class="toast-container" id="toast-container"></div>
+
+    <!-- Import overlay -->
+    <div class="import-overlay" id="import-overlay">
+        <div class="import-overlay__content">
+            <div class="import-overlay__spinner"></div>
+            <div class="import-overlay__message">Processing file...</div>
+        </div>
+    </div>
 
     <!-- Confirmation modal -->
     <div class="modal-overlay" id="modal-overlay">

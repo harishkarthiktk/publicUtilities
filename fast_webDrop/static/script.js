@@ -155,6 +155,140 @@ let allLinks = [];
 let filteredLinks = [];
 let deleteTarget = null;
 let isLoading = false;
+let isExporting = false;
+let isImporting = false;
+
+// Category name customization
+const DEFAULT_CATEGORY_NAMES = {
+    working: 'Working',
+    archived: 'Archived',
+    temporary: 'Temporary'
+};
+let categoryNames = { ...DEFAULT_CATEGORY_NAMES };
+
+function loadCategoryNames() {
+    const stored = localStorage.getItem('categoryNames');
+    if (stored) {
+        try {
+            const names = JSON.parse(stored);
+            categoryNames = { ...DEFAULT_CATEGORY_NAMES, ...names };
+        } catch (e) {
+            categoryNames = { ...DEFAULT_CATEGORY_NAMES };
+        }
+    } else {
+        categoryNames = { ...DEFAULT_CATEGORY_NAMES };
+    }
+}
+
+function saveCategoryNames() {
+    localStorage.setItem('categoryNames', JSON.stringify(categoryNames));
+}
+
+function resetCategoryNames() {
+    categoryNames = { ...DEFAULT_CATEGORY_NAMES };
+    saveCategoryNames();
+    renderLinks();
+    updateCategoryDisplays();
+}
+
+function updateCategoryDisplays() {
+    Object.keys(categoryNames).forEach(key => {
+        const column = document.querySelector(`[data-category="${key}"]`);
+        if (column) {
+            const titleEl = column.querySelector('.kanban-title');
+            if (titleEl) {
+                titleEl.textContent = categoryNames[key];
+            }
+        }
+    });
+}
+
+function enableCategoryEditing() {
+    const titleElements = document.querySelectorAll('.kanban-title');
+    titleElements.forEach(titleEl => {
+        const column = titleEl.closest('.kanban-column');
+        if (!column) return;
+        const category = column.getAttribute('data-category');
+
+        // Add dblclick listener
+        titleEl.addEventListener('dblclick', () => {
+            startEditingCategory(titleEl, category);
+        });
+
+        // Add edit button listener
+        const editBtn = column.querySelector('.kanban-edit-btn');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                startEditingCategory(titleEl, category);
+            });
+        }
+    });
+}
+
+function startEditingCategory(titleEl, category) {
+    // Don't allow editing if already editing
+    if (titleEl.parentElement.querySelector('.kanban-title-edit')) {
+        return;
+    }
+
+    // Create input element
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'kanban-title-edit';
+    input.value = categoryNames[category];
+    input.maxLength = 30;
+
+    // Replace title with input
+    titleEl.style.display = 'none';
+    titleEl.parentElement.insertBefore(input, titleEl);
+    input.focus();
+    input.select();
+
+    // Handle save/cancel
+    const handleSave = () => saveCategory(input, titleEl, category);
+    const handleCancel = () => cancelEdit(input, titleEl);
+
+    input.addEventListener('blur', handleSave);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            handleSave();
+        } else if (e.key === 'Escape') {
+            handleCancel();
+        }
+    });
+}
+
+function saveCategory(input, titleEl, category) {
+    const newName = input.value.trim();
+
+    // Validate: not empty and not just whitespace
+    if (newName === '' || newName.length === 0) {
+        showToast('Category name cannot be empty', 'error');
+        input.remove();
+        titleEl.style.display = '';
+        return;
+    }
+
+    // Update state and save
+    categoryNames[category] = newName;
+    saveCategoryNames();
+
+    // Update display
+    titleEl.textContent = newName;
+    input.remove();
+    titleEl.style.display = '';
+
+    // Re-render links to update dropdowns
+    renderLinks();
+    attachLinkEventHandlers();
+
+    showToast(`Updated to "${newName}"`, 'success');
+}
+
+function cancelEdit(input, titleEl) {
+    input.remove();
+    titleEl.style.display = '';
+}
 
 // === Theme Management ===
 function loadTheme() {
@@ -276,7 +410,7 @@ function applyFiltersAndSort() {
 function updateUI() {
     const hasLinks = filteredLinks.length > 0;
     emptyState.style.display = hasLinks ? 'none' : 'block';
-    searchContainer.style.display = allLinks.length > 0 ? 'block' : 'none';
+    searchContainer.style.display = 'block';
 
     // Update result count if searching
     const searchQuery = searchInput.value.trim();
@@ -345,9 +479,13 @@ function renderLinks() {
             list.appendChild(li);
         });
 
-        // Update count
+        // Update count and title with custom names
         const column = document.querySelector(`[data-category="${key}"]`);
         if (column) {
+            const titleEl = column.querySelector('.kanban-title');
+            if (titleEl) {
+                titleEl.textContent = categoryNames[key];
+            }
             column.querySelector('.kanban-count').textContent = links.length;
         }
     });
@@ -385,11 +523,18 @@ function createLinkItem(link, index) {
     const categorySelector = document.createElement('select');
     categorySelector.className = 'link-category-select';
     categorySelector.setAttribute('data-url', link.url);
-    categorySelector.innerHTML = `
-        <option value="working" ${link.category === 'working' ? 'selected' : ''}>Working</option>
-        <option value="archived" ${link.category === 'archived' ? 'selected' : ''}>Archived</option>
-        <option value="temporary" ${link.category === 'temporary' ? 'selected' : ''}>Temporary</option>
-    `;
+
+    const categories = ['working', 'archived', 'temporary'];
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = categoryNames[cat];
+        if (link.category === cat) {
+            option.selected = true;
+        }
+        categorySelector.appendChild(option);
+    });
+
     linkContent.appendChild(categorySelector);
 
     // Metadata
@@ -449,8 +594,16 @@ function attachLinkEventHandlers() {
                 const url = item.getAttribute('data-url');
                 const btn = e.target.closest('.link-action-btn.copy');
 
+                // Prevent multiple animations while one is running
+                if (btn.classList.contains('success-animation')) {
+                    return;
+                }
+
                 navigator.clipboard.writeText(url).then(() => {
                     showToast('Copied to clipboard!', 'success');
+
+                    // Add animation class
+                    btn.classList.add('success-animation');
 
                     // Visual feedback
                     const originalText = btn.textContent;
@@ -460,7 +613,8 @@ function attachLinkEventHandlers() {
                     setTimeout(() => {
                         btn.textContent = originalText;
                         btn.style.color = '';
-                    }, 1500);
+                        btn.classList.remove('success-animation');
+                    }, 600);
                 }).catch(() => {
                     showToast('Failed to copy', 'error');
                 });
@@ -621,6 +775,25 @@ async function deleteLink(url) {
  * Export data
  */
 async function exportData(type) {
+    if (isExporting) return;
+
+    isExporting = true;
+    exportImportSelect.disabled = true;
+    exportImportSelect.classList.add('loading');
+
+    // Save original options and create temporary "Exporting..." option
+    const originalOptions = Array.from(exportImportSelect.options);
+    const tempOption = document.createElement('option');
+    tempOption.textContent = `Exporting ${type.toUpperCase()}...`;
+    tempOption.selected = true;
+    tempOption.disabled = true;
+
+    // Clear and add temp option
+    while (exportImportSelect.options.length > 0) {
+        exportImportSelect.remove(0);
+    }
+    exportImportSelect.appendChild(tempOption);
+
     try {
         const response = await authenticatedFetch(`/export-${type}`);
         if (!response.ok) throw new Error('Export failed');
@@ -637,6 +810,19 @@ async function exportData(type) {
     } catch (error) {
         console.error('Export error:', error);
         showToast('Export failed', 'error');
+    } finally {
+        isExporting = false;
+        exportImportSelect.disabled = false;
+        exportImportSelect.classList.remove('loading');
+
+        // Restore original options
+        while (exportImportSelect.options.length > 0) {
+            exportImportSelect.remove(0);
+        }
+        originalOptions.forEach(option => {
+            exportImportSelect.appendChild(option.cloneNode(true));
+        });
+        exportImportSelect.value = '';
     }
 }
 
@@ -683,6 +869,11 @@ importFile.addEventListener('change', async (e) => {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Show import overlay
+    const importOverlay = document.getElementById('import-overlay');
+    importOverlay.classList.add('active');
+    isImporting = true;
+
     try {
         const response = await authenticatedFetch('/import-links', {
             method: 'POST',
@@ -691,14 +882,18 @@ importFile.addEventListener('change', async (e) => {
         const data = await response.json();
         if (data.status === 'success') {
             showToast(`Imported ${data.added || 0} links`, 'success');
-            // Reload to fetch new links
+            // Keep overlay visible during reload
             location.reload();
         } else {
             showToast(data.message || 'Import failed', 'error');
+            importOverlay.classList.remove('active');
+            isImporting = false;
         }
     } catch (error) {
         console.error('Import error:', error);
         showToast('Import error', 'error');
+        importOverlay.classList.remove('active');
+        isImporting = false;
     }
     e.target.value = '';
 });
@@ -724,6 +919,11 @@ modalOverlay.addEventListener('click', (e) => {
         modalOverlay.classList.remove('active');
         deleteTarget = null;
     }
+});
+
+// Reset categories button
+document.getElementById('reset-categories-btn').addEventListener('click', () => {
+    resetCategoryNames();
 });
 
 // === Drag and Drop ===
@@ -753,8 +953,26 @@ function preventDefaults(e) {
 dropZone.addEventListener('drop', async (e) => {
     const text = e.dataTransfer.getData('text') || e.dataTransfer.getData('URL');
     if (text) {
+        // Remove drag-over, add drop-success
+        dropZone.classList.remove('drag-over');
+        dropZone.classList.add('drop-success');
+
+        // Change icon to checkmark
+        const iconEl = dropZone.querySelector('.drop-zone__icon');
+        const originalIcon = iconEl.textContent;
+        iconEl.textContent = '✓';
+        iconEl.style.color = 'var(--success)';
+
+        // Add link
         urlInput.value = text;
         await addLink();
+
+        // Reset after 600ms
+        setTimeout(() => {
+            dropZone.classList.remove('drop-success');
+            iconEl.textContent = originalIcon;
+            iconEl.style.color = '';
+        }, 600);
     }
 });
 
@@ -765,10 +983,12 @@ function init() {
     if (checkAuthentication()) {
         // User is authenticated - load and render links
         loadTheme();
+        loadCategoryNames();
         loadLinksFromTemplate();
         const savedSort = localStorage.getItem('sort') || 'newest';
         sortSelect.value = savedSort;
         attachLinkEventHandlers();
+        enableCategoryEditing();
         applyFiltersAndSort();
     } else {
         // User not authenticated - login modal is already shown by checkAuthentication
