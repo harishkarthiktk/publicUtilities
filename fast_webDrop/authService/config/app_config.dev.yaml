@@ -1,0 +1,133 @@
+# Development Configuration for AuthService
+# Use this configuration for local development with verbose logging and faster hashing
+
+# ============================================
+# Application Settings
+# ============================================
+app:
+  name: "AuthService-Dev"
+  environment: "development"
+  version: "1.0.0"
+
+
+# ============================================
+# Logging Configuration
+# ============================================
+logging:
+  # General application logging - DEBUG level for detailed output
+  general:
+    name: "AuthManager-Dev"
+    level: "DEBUG"                # Verbose logging for development
+    file: "logs/dev/auth.log"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    date_format: "%Y-%m-%d %H:%M:%S"
+    max_bytes: 5242880            # 5MB
+    backup_count: 3
+
+  # Audit logging enabled for development tracking
+  audit:
+    enabled: true
+    file: "logs/dev/audit.log"
+    format: "[AUDIT] %(asctime)s - %(message)s"
+    date_format: "%Y-%m-%d %H:%M:%S"
+    max_bytes: 5242880
+    backup_count: 5
+
+
+# ============================================
+# Authentication Settings
+# ============================================
+auth:
+  # Hashing configuration - faster rounds for development
+  hashing:
+    enabled: true
+    algorithm: "bcrypt"
+    bcrypt_rounds: 10             # Faster for development (10 instead of 12)
+
+  custom_hash_function: null
+
+  # Development defaults
+  defaults:
+    ip_address: "127.0.0.1"       # Localhost for development
+    by_whom: "developer"
+    user_role: "admin"            # Admin role for easier testing
+    user_is_active: true
+
+  # Session settings
+  session:
+    timeout: 86400                # 24 hours for development
+    require_https: false          # Disable HTTPS requirement for local dev
+
+
+# ============================================
+# User Management
+# ============================================
+users:
+  config_file: "config/users.yaml"
+  auto_load: true
+
+
+# ============================================
+# Password Migration Settings
+# ============================================
+migration:
+  create_backup: true
+  backup_extension: ".bak"
+  reserved_keys:
+    - "auth_type"
+    - "log_level"
+    - "log_file"
+    - "require_https"
+
+
+# ============================================
+# Error Codes
+# ============================================
+error_codes:
+  user_not_found: "USER_NOT_FOUND"
+  invalid_credentials: "INVALID_CREDENTIALS"
+  auth_error: "AUTH_ERROR"
+  invalid_header: "INVALID_HEADER"
+  invalid_encoding: "INVALID_ENCODING"
+  header_parse_error: "HEADER_PARSE_ERROR"
+
+
+# ============================================
+# Security Policies
+# ============================================
+security:
+  password_policy:
+    min_length: 6                 # Relaxed for development
+    require_uppercase: false
+    require_numbers: false
+    require_special: false
+
+  rate_limiting:
+    enabled: false                # Disabled for development
+
+
+# ============================================
+# Framework-Specific Settings
+# ============================================
+frameworks:
+  flask:
+    host: "127.0.0.1"
+    port: 5000
+    debug: true                   # Enable Flask debug mode
+    cors_origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
+
+  django:
+    allowed_hosts:
+      - "localhost"
+      - "127.0.0.1"
+    auth_type: "basic"
+
+  express:
+    port: 3000
+    cors_enabled: true
+
+  spring:
+    port: 8080
+    servlet_path: "/api"

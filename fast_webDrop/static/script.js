@@ -978,6 +978,27 @@ dropZone.addEventListener('drop', async (e) => {
 
 // === Initialization ===
 
+function initStickyInputDetection() {
+    const inputSection = document.querySelector('.input-section');
+    if (!inputSection) return;
+
+    const mainContainer = document.querySelector('.main-container');
+    if (!mainContainer) return;
+
+    const observer = new IntersectionObserver(([entry]) => {
+        if (!entry.isIntersecting) {
+            inputSection.classList.add('sticky-active');
+        } else {
+            inputSection.classList.remove('sticky-active');
+        }
+    }, {
+        root: mainContainer,
+        threshold: 0
+    });
+
+    observer.observe(inputSection);
+}
+
 function init() {
     // Initialize authentication before anything else
     if (checkAuthentication()) {
@@ -990,6 +1011,7 @@ function init() {
         attachLinkEventHandlers();
         enableCategoryEditing();
         applyFiltersAndSort();
+        initStickyInputDetection();
     } else {
         // User not authenticated - login modal is already shown by checkAuthentication
         loadTheme();

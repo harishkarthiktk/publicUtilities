@@ -12,8 +12,7 @@ import signal
 import asyncio
 from io import StringIO
 from contextlib import asynccontextmanager
-from authService import AuthManager, AuthConfig
-from authService.logger import setup_logger, AuthLogger
+from authService.authservice import AuthManager, AuthConfig, setup_logger
 
 # Global state for shutdown
 _shutdown_event = asyncio.Event()
@@ -25,15 +24,19 @@ if not os.path.exists(LOGS_DIR):
     os.makedirs(LOGS_DIR)
 
 # Initialize authentication with file logging
-logger = setup_logger(
+# setup_logger returns an AuthLogger object configured and ready to use
+auth_logger = setup_logger(
     name="AuthManager",
     log_file=os.path.join(LOGS_DIR, "auth.log"),
     level="INFO",
     max_bytes=5242880,  # 5MB
     backup_count=5
 )
-auth_logger = AuthLogger(logger)
-auth_config = AuthConfig(yaml_file='users.yaml', use_env_vars=False)
+
+# Load configuration from users.yaml (must use bcrypt hashes)
+auth_config = AuthConfig(yaml_file='users.yaml')
+
+# Create AuthManager with config and logger
 auth_manager = AuthManager(auth_config, logger=auth_logger)
 
 # Simple file-based storage
@@ -44,28 +47,20 @@ async def lifespan(app: FastAPI):
     """Manage app startup and graceful shutdown."""
     # Startup
     print("FastWebDrop starting up...")
-    logger.info("Application startup")
+    auth_logger.logger.info("Application startup")
 
     yield
 
     # Shutdown - graceful cleanup
     print("\nInitiating graceful shutdown...")
-    logger.info("Application shutdown initiated")
+    auth_logger.logger.info("Application shutdown initiated")
 
     # Give in-flight requests time to complete (Uvicorn handles this)
     # but we ensure our resources are cleaned up
     try:
-        # Close the auth logger
-        if hasattr(auth_logger, 'close'):
-            auth_logger.close()
-
-        # Close the main logger
-        if hasattr(logger, 'close'):
-            logger.close()
-
         # Final data sync - ensure no pending writes
         print("Cleaning up resources...")
-        logger.info("Graceful shutdown completed")
+        auth_logger.logger.info("Graceful shutdown completed")
     except Exception as e:
         print(f"Error during shutdown: {e}")
 
@@ -239,7 +234,7 @@ def setup_signal_handlers():
     def signal_handler(sig, frame):
         signame = signal.Signals(sig).name
         print(f"\nReceived {signame} signal. Gracefully shutting down...")
-        logger.info(f"Received {signame} signal, initiating graceful shutdown")
+        auth_logger.logger.info(f"Received {signame} signal, initiating graceful shutdown")
         # Uvicorn will handle the shutdown through SIGINT/SIGTERM
 
     # Handle SIGINT (Ctrl+C) and SIGTERM (kill signal)
