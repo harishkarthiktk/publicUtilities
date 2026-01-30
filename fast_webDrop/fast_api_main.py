@@ -10,6 +10,7 @@ import csv
 import base64
 import signal
 import asyncio
+import platform
 from io import StringIO
 from contextlib import asynccontextmanager
 from authService.authservice import AuthManager, AuthConfig, setup_logger
@@ -71,12 +72,12 @@ templates = Jinja2Templates(directory="templates")
 
 def load_links():
     if os.path.exists(LINKS_FILE):
-        with open(LINKS_FILE, 'r') as f:
+        with open(LINKS_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     return []
 
 def save_links(links):
-    with open(LINKS_FILE, 'w') as f:
+    with open(LINKS_FILE, 'w', encoding='utf-8') as f:
         json.dump(links, f)
 
 class Link(BaseModel):
@@ -237,9 +238,11 @@ def setup_signal_handlers():
         auth_logger.logger.info(f"Received {signame} signal, initiating graceful shutdown")
         # Uvicorn will handle the shutdown through SIGINT/SIGTERM
 
-    # Handle SIGINT (Ctrl+C) and SIGTERM (kill signal)
+    # Handle SIGINT (Ctrl+C) - supported on all platforms
     signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    # Handle SIGTERM (kill signal) - not available on Windows
+    if platform.system() != 'Windows':
+        signal.signal(signal.SIGTERM, signal_handler)
 
 
 if __name__ == "__main__":

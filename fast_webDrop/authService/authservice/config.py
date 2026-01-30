@@ -64,7 +64,7 @@ class AuthConfig:
             if not yaml_path.exists():
                 raise FileNotFoundError(f"YAML config file not found: {self.yaml_file}")
 
-            with open(yaml_path, 'r') as f:
+            with open(yaml_path, 'r', encoding='utf-8') as f:
                 data = yaml.safe_load(f) or {}
 
             # Load users (check both 'users' key and flat structure)
@@ -227,7 +227,7 @@ class AuthConfig:
             if key != 'users':
                 data[key] = value
 
-        with open(filepath, 'w') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
     def validate(self, strict: bool = True) -> bool:
