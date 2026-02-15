@@ -123,8 +123,8 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     loginError.style.display = 'none';
 
     try {
-        // Test credentials by attempting to fetch homepage
-        const response = await fetch('/', {
+        // Test credentials by attempting to fetch an authenticated endpoint
+        const response = await fetch('/export-json', {
             headers: {
                 'Authorization': `Basic ${btoa(`${username}:${password}`)}`
             }

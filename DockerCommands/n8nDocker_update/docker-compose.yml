@@ -1,0 +1,23 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:latest
+    pull_policy: always
+    container_name: n8n
+    restart: always
+    ports:
+      - "5678:5678"
+    environment:
+      - TZ=Asia/Kolkata
+      - GENERIC_TIMEZONE=Asia/Kolkata
+      - N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+      - N8N_RUNNERS_ENABLED=true
+      - NODE_ENV=production
+      - HTTP_PROXY=http://host.containers.internal:3128
+      - HTTPS_PROXY=http://host.containers.internal:3128
+      - NO_PROXY=host.containers.internal,127.0.0.0/8,::1,zohomeeting.com,zohoassist.com,avcliq.zoho.com,.zohomeeting.com,.zohoassist.com,zohopublic.com,zohopublic.in,zohopublic.eu,zohopublic.com.au,zohopublic.jp,zohopublic.ca,zohopublic.sa,us4-wss-accl.zoho.com,us4-wss.zoho.com,us3-wss-accl.zoho.com,us3-wss.zoho.com,in2-wss.zoho.in,in1-wss.zoho.in,eu1-wss.zoho.eu,eu2-wss.zoho.eu,cn2-wss.zoho.com.cn,cn3-wss.zoho.com.cn,au1-wss.zoho.com.au,au2-wss.zoho.com.au,jp1-wss.zoho.jp,jp2-wss.zoho.jp,ca1-wss.zohocloud.ca,ca2-wss.zohocloud.ca,sa1-wss.zoho.sa,sa2-wss.zoho.sa,in1-wss.arattai.in,in2-wss.arattai.in,preus4-wss.zoho.com,preus3-wss.zoho.com,us4-wss-pop.zoho.com,us3-wss-pop.zoho.com,in2-wss-pop.zoho.in,in1-wss-pop.zoho.in,eu1-wss-pop.zoho.eu,eu2-wss-pop.zoho.eu,cn2-wss-pop.zoho.com.cn,cn3-wss-pop.zoho.com.cn,au1-wss-pop.zoho.com.au,au2-wss-pop.zoho.com.au,jp1-wss-pop.zoho.jp,jp2-wss-pop.zoho.jp,ca1-wss-pop.zohocloud.ca,ca2-wss-pop.zohocloud.ca,sa1-wss-pop.zoho.sa,sa2-wss-pop.zoho.sa,in2-prewss-pop.zoho.in,in1-prewss-pop.zoho.in,us4-wss-vod.zoho.com,us3-wss-vod.zoho.com,in2-wss-vod.zoho.in,in1-wss-vod.zoho.in,eu1-wss-vod.zoho.eu,eu2-wss-vod.zoho.eu,cn2-wss-vod.zoho.com.cn,cn3-wss-vod.zoho.com.cn,au1-wss-vod.zoho.com.au,au2-wss-vod.zoho.com.au,jp1-wss-vod.zoho.jp,jp2-wss-vod.zoho.jp,ca1-wss-vod.zohocloud.ca,ca2-wss-vod.zohocloud.ca,sa1-wss-vod.zoho.sa,sa2-wss-vod.zoho.sa,in1-wss-vod.arattai.in,in2-wss-vod.arattai.in,us4-prewss-vod.zoho.com,us3-prewss-vod.zoho.com,zohoconference.com
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
+    external: true
