@@ -4,6 +4,13 @@
 
 This enhanced script converts Markdown files to DOCX format using Pandoc, supporting comprehensive Markdown extensions, custom styling, batch processing, and validation features. It addresses all the issues from the original critique, providing a robust, testable, and user-friendly tool for document conversion.
 
+## Project Structure
+
+- `md2docx/` - Main conversion tool with configuration
+- `pdf_extract.py` - PDF text extractor utility
+- `docs/reference/` - Reference documentation (guides and style recommendations)
+- `z_archive/` - Legacy scripts and older implementations
+
 ## Features
 
 - **Single and Batch Conversion**: Convert individual files or multiple files/directories using glob patterns or recursive search.
@@ -243,4 +250,4 @@ python convert_to_docx.py ./docs --output-dir ./output --quiet --recursive
 See CONTRIBUTING.md for details.
 
 ---
-Generated from the enhanced convert_to_docx.py script.
+Generated from the enhanced convert_to_docx.py script (archived in z_archive/convert_to_docx.py).

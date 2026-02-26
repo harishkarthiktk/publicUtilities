@@ -1,0 +1,39 @@
+# Markdown to DOCX Styling Configuration
+# Standard document formatting following professional conventions
+# Usage: python md2docx.py input.md output.docx --config config.yaml
+
+document:
+  font_family: "Times New Roman"  # Standard serif font for professional documents
+  line_spacing: 2.0                # Double-spacing (standard for academic/professional docs)
+
+# Heading styles (H1 through H6)
+# Standard hierarchy with conservative sizing
+headings:
+  h1:
+    size: 16                       # Title level
+    bold: true
+  h2:
+    size: 14                       # Section heading
+    bold: true
+  h3:
+    size: 13                       # Subsection heading
+    bold: true
+  h4:
+    size: 12                       # Minor heading (same as body, distinguished by bold)
+    bold: true
+  h5:
+    size: 12
+    bold: true
+  h6:
+    size: 12
+    bold: true
+
+# Body text styling
+body:
+  font_size: 12                    # Standard 12pt for body text
+  paragraph_spacing_after: 10      # Standard paragraph separation
+
+# List styling
+lists:
+  indent_size: 0.5                 # Half-inch standard indentation
+  spacing_after: 10                # Consistent with paragraph spacing
