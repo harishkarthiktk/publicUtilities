@@ -21,7 +21,7 @@ The project includes an asynchronous (Playwright) implementation for batch proce
   - Supports Markdown link format `- [title](url)` or plain URLs
   - Converts with markdownify and BeautifulSoup
   - Includes source URL metadata in output
-  - Outputs to `outputs/async/`
+  - Outputs to `outputs/markdown/`
 
 - **`link_extractor.py`** - MHTML archive link extraction
   - Parses MHTML email-format files (binary archives with embedded HTML)
@@ -52,7 +52,7 @@ playwright install  # Required for page_downloader.py only
 
 **Asynchronous page downloader (batch Markdown links):**
 ```bash
-python page_downloader.py -f data/sample_input.txt -o outputs/async
+python page_downloader.py -f data/sample_input.txt -o outputs/markdown
 ```
 
 **Extract links from MHTML files:**
@@ -70,7 +70,7 @@ python link_extractor.py -f ./mhtml_folder -o links.txt
 ## Configuration & Data Flow
 
 ### Input/Output Defaults
-- `page_downloader.py`: reads from data files (e.g., `data/sample_input.txt`), outputs to `outputs/async/`
+- `page_downloader.py`: reads from data files (e.g., `data/sample_input.txt`), outputs to `outputs/markdown/`
 - `link_extractor.py`: reads from current directory, outputs to `links.txt`
 
 ### Logging
@@ -88,4 +88,4 @@ Both downloaders sanitize filenames by removing invalid chars `<>:"/\|?*`, repla
 - **Playwright Binary Installation** - `playwright install` must be run before using `page_downloader.py`
 - **spaCy Model** - `pagedownloads/meta_extractor/classifier.py` auto-downloads the spaCy model on first run if missing.
 - **Browser Dependencies** - Playwright downloads its own browser binaries.
-- **Project Structure** - Sample input files are in `data/` directory; downloaded content goes to `outputs/async/`
+- **Project Structure** - Sample input files are in `data/` directory; downloaded content goes to `outputs/markdown/`

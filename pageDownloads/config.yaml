@@ -40,7 +40,7 @@ page_downloader:
     include_source_url: true
 
   output:
-    default_folder: "outputs/async"
+    default_folder: "outputs/markdown"
 
 # process_mhtml.py - MHTML archive link extractor
 process_mhtml:
