@@ -4,20 +4,20 @@ Web scraping utility suite for downloading and processing web content.
 
 ## Tools
 
-- **async_page_downloader.py** - Asynchronous page downloader (Playwright) for batch Markdown files
+- **page_downloader.py** - Asynchronous page downloader (Playwright) for batch Markdown files
 - **link_extractor.py** - Extract links from MHTML archive files
 
 ## Workflows
 
 **Batch Download**
 ```
-Markdown list (- [title](url)) → async_page_downloader.py → Markdown files
+Markdown list (- [title](url)) → page_downloader.py → Markdown files
 ```
 Efficient parallel downloading of multiple pages.
 
 **MHTML Exploration → Download**
 ```
-MHTML file → link_extractor.py → links.txt → async_page_downloader.py → Downloaded pages
+MHTML file → link_extractor.py → links.txt → page_downloader.py → Downloaded pages
 ```
 Explore saved websites and download linked pages.
 
@@ -25,7 +25,7 @@ Explore saved websites and download linked pages.
 
 ```bash
 pip install -r requirements.txt
-playwright install  # Required for async_page_downloader.py only
+playwright install  # Required for page_downloader.py only
 ```
 
 ## Usage
@@ -33,7 +33,7 @@ playwright install  # Required for async_page_downloader.py only
 ### Async Downloader (Batch)
 
 ```bash
-python async_page_downloader.py -f data/sample_input.txt -o outputs/async
+python page_downloader.py -f data/sample_input.txt -o outputs/async
 ```
 
 Supports Markdown format: `- [title](url)` or plain URLs (one per line)

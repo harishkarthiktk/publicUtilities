@@ -10,13 +10,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 2. **MHTML Link Extractor** - Extract specific links from MHTML archive files
 3. **Meta Tag Scraper** - Extract Open Graph, Twitter Card, and SEO metadata from URLs
 
-The project includes both synchronous (Selenium) and asynchronous (Playwright) implementations for different use cases.
+The project includes an asynchronous (Playwright) implementation for batch processing.
 
 ## Architecture
 
 ### Core Modules
 
-- **`async_page_downloader.py`** - Asynchronous page downloader using Playwright
+- **`page_downloader.py`** - Asynchronous page downloader using Playwright
   - Better for batch processing (handles multiple URLs via async/await)
   - Supports Markdown link format `- [title](url)` or plain URLs
   - Converts with markdownify and BeautifulSoup
@@ -45,14 +45,14 @@ The project includes both synchronous (Selenium) and asynchronous (Playwright) i
 ### Setup
 ```bash
 pip install -r requirements.txt
-playwright install  # Required for main_asyncio.py only
+playwright install  # Required for page_downloader.py only
 ```
 
 ### Running Main Tools
 
 **Asynchronous page downloader (batch Markdown links):**
 ```bash
-python async_page_downloader.py -f data/sample_input.txt -o outputs/async
+python page_downloader.py -f data/sample_input.txt -o outputs/async
 ```
 
 **Extract links from MHTML files:**
@@ -62,7 +62,7 @@ python link_extractor.py -f ./mhtml_folder -o links.txt
 
 ### Key Dependencies
 
-- **Playwright** (async_page_downloader.py) - Async browser automation
+- **Playwright** (page_downloader.py) - Async browser automation
 - **markdownify / BeautifulSoup4** - HTML-to-Markdown conversion
 - **spaCy** (meta_extractor/classifier.py) - NLP classification
 - **tqdm** - Progress bars for batch operations
@@ -70,7 +70,7 @@ python link_extractor.py -f ./mhtml_folder -o links.txt
 ## Configuration & Data Flow
 
 ### Input/Output Defaults
-- `async_page_downloader.py`: reads from data files (e.g., `data/sample_input.txt`), outputs to `outputs/async/`
+- `page_downloader.py`: reads from data files (e.g., `data/sample_input.txt`), outputs to `outputs/async/`
 - `link_extractor.py`: reads from current directory, outputs to `links.txt`
 
 ### Logging
@@ -85,7 +85,7 @@ Both downloaders sanitize filenames by removing invalid chars `<>:"/\|?*`, repla
 
 - **Web Scraping Disclaimer** - Respect site T&Cs, robots.txt, rate limits. Scripts comply via delays and proper user-agents.
 - **MHTML Link Filtering** - Currently hardcoded to filter `/deluge/help` links; modify `link_extractor.py` to change filter criteria.
-- **Playwright Binary Installation** - `playwright install` must be run before using `async_page_downloader.py`
+- **Playwright Binary Installation** - `playwright install` must be run before using `page_downloader.py`
 - **spaCy Model** - `pagedownloads/meta_extractor/classifier.py` auto-downloads the spaCy model on first run if missing.
 - **Browser Dependencies** - Playwright downloads its own browser binaries.
-- **Project Structure** - Sample input files are in `data/` directory; downloaded content goes to `outputs/async/` or `outputs/sync/`
+- **Project Structure** - Sample input files are in `data/` directory; downloaded content goes to `outputs/async/`

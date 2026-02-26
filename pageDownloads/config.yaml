@@ -27,8 +27,8 @@ main:
     default_folder: "outputs/sync"
     use_title_by_default: false
 
-# main_asyncio.py - Asynchronous Playwright page downloader
-main_asyncio:
+# page_downloader.py - Asynchronous Playwright page downloader
+page_downloader:
   playwright:
     timeout: 60000  # milliseconds
     headless: true

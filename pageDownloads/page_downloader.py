@@ -72,7 +72,7 @@ async def save_webpage_as_markdown(title, url, browser, output_dir):
         logger.debug(f"Creating new page for {url}...")
         page = await browser.new_page()
         logger.debug(f"Navigating to {url}...")
-        timeout = config.get('main_asyncio', 'playwright.timeout', 60000)
+        timeout = config.get('page_downloader', 'playwright.timeout', 60000)
         await page.goto(url, timeout=timeout)
         logger.debug(f"Waiting for content...")
         html = await page.content()
@@ -85,12 +85,12 @@ async def save_webpage_as_markdown(title, url, browser, output_dir):
         # Extract main content; can be improved for site-specifics
         main_content = soup.body or soup
         logger.debug(f"Converting to Markdown...")
-        heading_style = config.get('main_asyncio', 'markdown.heading_style', 'ATX')
+        heading_style = config.get('page_downloader', 'markdown.heading_style', 'ATX')
         markdown_content = markdownify.markdownify(str(main_content), heading_style=heading_style)
         file_path = os.path.join(output_dir, f"{file_title}.md")
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(f'# {file_title}\n\n')
-            include_source = config.get('main_asyncio', 'markdown.include_source_url', True)
+            include_source = config.get('page_downloader', 'markdown.include_source_url', True)
             if include_source:
                 f.write(f'*Source: {url}*\n\n')
             f.write(markdown_content)
@@ -124,12 +124,12 @@ async def main(input_file, output_dir):
     try:
         async with async_playwright() as p:
             logger.info("Launching browser...")
-            headless = config.get('main_asyncio', 'playwright.headless', True)
+            headless = config.get('page_downloader', 'playwright.headless', True)
             browser = await p.chromium.launch(headless=headless)
             logger.info("Browser launched successfully.")
 
             # Process with concurrency limit
-            concurrency_limit = config.get('main_asyncio', 'playwright.concurrency_limit', 5)
+            concurrency_limit = config.get('page_downloader', 'playwright.concurrency_limit', 5)
             semaphore = asyncio.Semaphore(concurrency_limit)
 
             async def process_with_semaphore(title, url):
@@ -153,7 +153,7 @@ async def main(input_file, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download web pages from a Markdown file with URLs and save as markdown.")
     parser.add_argument('-f', '--input-file', help='Input markdown file path', required=True)
-    parser.add_argument('-o', '--output-folder', default=config.get('main_asyncio', 'output.default_folder', './asyncio_output'), help='Output folder path')
+    parser.add_argument('-o', '--output-folder', default=config.get('page_downloader', 'output.default_folder', './outputs/async'), help='Output folder path')
     args = parser.parse_args()
 
     asyncio.run(main(args.input_file, args.output_folder))
