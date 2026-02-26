@@ -56,13 +56,11 @@ spacy = ["spacy>=3.0.0"]
 dev = ["pytest>=7.0", "pytest-cov>=4.0"]
 
 [project.scripts]
-page-downloader = "page_downloader:main"
-async-downloader = "async_downloader:main"
-mhtml-extractor = "mhtml_extractor:main"
-meta-scraper = "meta_scraper:main"
+async-downloader = "async_page_downloader:main"
+link-extractor = "link_extractor:main"
 
-[tool.setuptools]
-packages = ["pagedownloads"]
+[tool.setuptools.packages.find]
+where = ["."]
 
 [tool.setuptools.package-data]
 pagedownloads = ["py.typed"]

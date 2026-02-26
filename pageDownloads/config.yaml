@@ -24,7 +24,7 @@ main:
     browser: "chrome"  # chrome, firefox, edge (must be installed)
 
   output:
-    default_folder: "outputs"
+    default_folder: "outputs/sync"
     use_title_by_default: false
 
 # main_asyncio.py - Asynchronous Playwright page downloader
@@ -40,7 +40,7 @@ main_asyncio:
     include_source_url: true
 
   output:
-    default_folder: "./asyncio_output"
+    default_folder: "outputs/async"
 
 # process_mhtml.py - MHTML archive link extractor
 process_mhtml:
