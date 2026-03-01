@@ -9,7 +9,7 @@
 /logs/*.txt
 url_lists.txt
 *.log
-
+data/download_list.txt
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
