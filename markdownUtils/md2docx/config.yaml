@@ -37,3 +37,23 @@ body:
 lists:
   indent_size: 0.5                 # Half-inch standard indentation
   spacing_after: 10                # Consistent with paragraph spacing
+
+# Code block styling
+code:
+  font_family: "Courier New"
+  font_size: 10
+  background_color: "D9D9D9"      # Light gray background
+
+# Blockquote styling
+blockquote:
+  indent: 0.5
+  font_size: 11
+  italic: true
+
+# Link rendering
+links:
+  show_url: false                  # true = "text (url)", false = just text
+
+# Obsidian ==highlight== rendering
+highlight:
+  bold: true

@@ -28,14 +28,20 @@ python md2docx.py input.md output.docx --config custom-config.yaml
 
 Styling is managed through `config.yaml`. Key options:
 
-- **document.font_family**: Font for entire document (default: Calibri)
+- **document.font_family**: Font for entire document (default: Times New Roman)
 - **document.line_spacing**: Line spacing (1.0, 1.5, 2.0)
 - **headings.h1-h6.size**: Font size for each heading level
 - **headings.h1-h6.bold**: Whether headings are bold
 - **body.font_size**: Body text font size
 - **body.paragraph_spacing_after**: Space after paragraphs
 - **lists.indent_size**: List indentation in inches
-- **lists.spacing_after**: Space after list items
+- **code.font_family**: Code block font (default: Courier New)
+- **code.font_size**: Code block font size
+- **code.background_color**: Code block background hex color
+- **blockquote.indent**: Blockquote indentation in inches
+- **blockquote.italic**: Whether blockquotes are italic
+- **links.show_url**: Show URL after link text (true/false)
+- **highlight.bold**: Whether ==highlights== render as bold
 
 ### Customizing
 1. Copy `config.yaml` to create your own config file
@@ -45,12 +51,28 @@ Styling is managed through `config.yaml`. Key options:
 ## Supported Markdown Elements
 
 - Headings (H1 through H6)
-- Paragraphs
-- Bold text (`**text**` or `__text__`)
-- Italic text (`*text*` or `_text_`)
-- Unordered lists (`-`, `*`, `+`)
-- Ordered lists (`1.`, `2.`, etc.)
-- Links (rendered as plain text)
+- Paragraphs with proper inline formatting
+- **Bold** and *italic* text (correctly applied per-span)
+- ~~Strikethrough~~ text
+- `Inline code`
+- Fenced code blocks (monospace with gray background)
+- Unordered lists (`-`, `*`, `+`) with nesting
+- Ordered lists (`1.`, `2.`, etc.) with nesting
+- Tables (pipe tables)
+- Blockquotes
+- Horizontal rules
+- Links (configurable: text only or text with URL)
+- Definition lists
+- Footnotes
+- Obsidian ==highlight== syntax
+- YAML frontmatter mapped to DOCX metadata (title, author, date, subject, keywords/tags)
+- Smart quotes and abbreviations
+
+### Not Supported
+
+- Images (logged as warnings, skipped)
+- Math expressions (TeX)
+- Task lists
 
 ## Portability
 
