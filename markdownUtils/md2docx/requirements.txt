@@ -1,0 +1,5 @@
+Markdown==3.10.2
+python_docx==1.2.0
+PyYAML==6.0.3
+mdformat==0.7.22
+mdx-truly-sane-lists==1.3

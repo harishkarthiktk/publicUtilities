@@ -7,7 +7,7 @@ import markdownify
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from tqdm import tqdm
-from pagedownloads.utils import config, setup_logger, ensure_browser_available
+from pagedownloads.utils import config, setup_logger, ensure_browser_available, detect_and_remove_duplicates
 
 logger = setup_logger(__name__)
 
@@ -63,34 +63,74 @@ def sanitize_filename(name):
     name = name.rstrip('_')
     return re.sub(r'[\\/*?:"<>|]', "", name)  # Additional cleanup
 
-async def save_webpage_as_markdown(title, url, browser, output_dir):
+async def save_webpage_as_html(title, url, page, output_dir):
+    output_dir = os.path.join(os.path.dirname(output_dir.rstrip('/\\')), 'mhtml')
+    """
+    Saves the webpage as a self-contained MHTML file using CDP snapshot.
+    """
+    try:
+        client = await page.context.new_cdp_session(page)
+        result = await client.send("Page.captureSnapshot", {"format": "mhtml"})
+        mhtml_content = result["data"]
+
+        soup = BeautifulSoup(await page.content(), 'html.parser')
+        title_tag = soup.find('title')
+        page_title = title_tag.text.strip() if title_tag else title
+
+        url_hash = re.sub(r'[^a-zA-Z0-9]', '_', url)
+        url_hash = re.sub(r'_+', '_', url_hash).strip('_')[:100]
+        file_title = sanitize_filename(f"{page_title}_{url_hash}")
+
+        os.makedirs(output_dir, exist_ok=True)
+        file_path = os.path.join(output_dir, f"{file_title}.mhtml")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(mhtml_content)
+        logger.info(f'Saved: {file_title}.mhtml')
+    except Exception as e:
+        logger.error(f"Failed to save HTML for {url}: {e}")
+
+
+async def save_webpage_as_markdown(title, url, browser, output_dir, save_html=False):
     """
     Loads the webpage, extracts rendered content, saves it as Markdown.
+    If save_html is True, also saves as a self-contained MHTML file.
+    Generates unique filenames based on URL (including hash fragments).
     """
     page = None
     try:
         logger.debug(f"Creating new page for {url}...")
         page = await browser.new_page()
         logger.debug(f"Navigating to {url}...")
-        timeout = config.get('main_asyncio', 'playwright.timeout', 60000)
+        timeout = config.get('page_downloader', 'playwright.timeout', 60000)
         await page.goto(url, timeout=timeout)
         logger.debug(f"Waiting for content...")
         html = await page.content()
         logger.debug(f"Content retrieved, parsing HTML...")
+
+        if save_html:
+            await save_webpage_as_html(title, url, page, output_dir)
+
         soup = BeautifulSoup(html, 'html.parser')
-        # Extract page title
+        # Extract page title from title tag
         title_tag = soup.find('title')
-        file_title = sanitize_filename(title_tag.text.strip() if title_tag else title)
-        logger.debug(f"Using title: {file_title}")
+        page_title = title_tag.text.strip() if title_tag else title
+
+        # Generate unique filename from URL (including hash) to avoid collisions
+        url_hash = re.sub(r'[^a-zA-Z0-9]', '_', url)
+        url_hash = re.sub(r'_+', '_', url_hash)  # Replace multiple underscores with single
+        url_hash = url_hash.strip('_')[:100]  # Limit length
+        file_title = sanitize_filename(f"{page_title}_{url_hash}")
+        logger.debug(f"Generated filename: {file_title}")
+
         # Extract main content; can be improved for site-specifics
         main_content = soup.body or soup
         logger.debug(f"Converting to Markdown...")
-        heading_style = config.get('main_asyncio', 'markdown.heading_style', 'ATX')
+        heading_style = config.get('page_downloader', 'markdown.heading_style', 'ATX')
         markdown_content = markdownify.markdownify(str(main_content), heading_style=heading_style)
         file_path = os.path.join(output_dir, f"{file_title}.md")
         with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(f'# {file_title}\n\n')
-            include_source = config.get('main_asyncio', 'markdown.include_source_url', True)
+            f.write(f'# {page_title}\n\n')
+            include_source = config.get('page_downloader', 'markdown.include_source_url', True)
             if include_source:
                 f.write(f'*Source: {url}*\n\n')
             f.write(markdown_content)
@@ -105,10 +145,14 @@ async def save_webpage_as_markdown(title, url, browser, output_dir):
             except Exception as e:
                 logger.debug(f"Error closing page for {url}: {e}")
 
-async def main(input_file, output_dir):
+async def main(input_file, output_dir, save_html=False, single_url=None):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    links = extract_links_from_md(input_file)
+
+    if single_url:
+        links = [(single_url, single_url)]
+    else:
+        links = extract_links_from_md(input_file)
 
     if not links:
         logger.warning(f"No links to process from {input_file}. Exiting.")
@@ -124,18 +168,18 @@ async def main(input_file, output_dir):
     try:
         async with async_playwright() as p:
             logger.info("Launching browser...")
-            headless = config.get('main_asyncio', 'playwright.headless', True)
+            headless = config.get('page_downloader', 'playwright.headless', True)
             browser = await p.chromium.launch(headless=headless)
             logger.info("Browser launched successfully.")
 
             # Process with concurrency limit
-            concurrency_limit = config.get('main_asyncio', 'playwright.concurrency_limit', 5)
+            concurrency_limit = config.get('page_downloader', 'playwright.concurrency_limit', 5)
             semaphore = asyncio.Semaphore(concurrency_limit)
 
             async def process_with_semaphore(title, url):
                 async with semaphore:
                     logger.info(f"Processing: {url}")
-                    await save_webpage_as_markdown(title, url, browser, output_dir)
+                    await save_webpage_as_markdown(title, url, browser, output_dir, save_html=save_html)
 
             # Create tasks for all links
             tasks = [process_with_semaphore(title, url) for title, url in links]
@@ -147,13 +191,24 @@ async def main(input_file, output_dir):
             logger.info("Closing browser...")
             await browser.close()
             logger.info("Browser closed. All downloads complete.")
+
+            # Detect and remove duplicate files by content hash
+            logger.info("Running duplicate detection...")
+            detect_and_remove_duplicates(output_dir, logger=logger)
+            logger.info("Duplicate detection complete.")
     except Exception as e:
         logger.error(f"Error in main async execution: {e}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Download web pages from a Markdown file with URLs and save as markdown.")
-    parser.add_argument('-f', '--input-file', help='Input markdown file path', required=True)
-    parser.add_argument('-o', '--output-folder', default=config.get('main_asyncio', 'output.default_folder', './asyncio_output'), help='Output folder path')
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument('-f', '--input-file', help='Input markdown file path')
+    input_group.add_argument('-u', '--url', help='Single URL to download')
+    parser.add_argument('-o', '--output-folder', default=config.get('page_downloader', 'output.default_folder', './outputs/markdown'), help='Output folder path')
+    parser.add_argument('--html', action='store_true', help='Also save each page as a self-contained MHTML file')
     args = parser.parse_args()
 
-    asyncio.run(main(args.input_file, args.output_folder))
+    if args.url:
+        asyncio.run(main(None, args.output_folder, save_html=args.html, single_url=args.url))
+    else:
+        asyncio.run(main(args.input_file, args.output_folder, save_html=args.html))

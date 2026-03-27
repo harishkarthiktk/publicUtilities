@@ -8,9 +8,8 @@
 /logs/
 /logs/*.txt
 url_lists.txt
-asyncio_output/
 *.log
-
+data/download_list.txt
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
