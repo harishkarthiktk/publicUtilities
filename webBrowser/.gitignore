@@ -1,0 +1,31 @@
+# Session and state files
+sessions/
+*.json
+
+# Logs and output
+logs/
+*.log
+
+# Configuration files (user-specific)
+configs/*.yaml
+!configs/example.yaml
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# IDE and OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environments
+venv/
+.venv/
+env/
