@@ -1,0 +1,8 @@
+url: https://example.com
+interval: 60
+jitter: 20
+selectors:
+  - "h1"
+  - ".price"
+log: logs/example.txt
+label: "Example Site"
