@@ -1,0 +1,14 @@
+services:
+  fedora:
+    build:
+      context: .
+      dockerfile: Containerfile
+    container_name: fedora
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    volumes:
+      - fedora_home:/root
+
+volumes:
+  fedora_home:
