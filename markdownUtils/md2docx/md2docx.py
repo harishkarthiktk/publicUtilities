@@ -8,7 +8,7 @@ tables, code blocks, blockquotes, horizontal rules, definition lists, links,
 Obsidian ==highlights==, and YAML frontmatter as DOCX metadata.
 
 Usage:
-    python md2docx.py input.md output.docx [--config config.yaml]
+    python md2docx.py -i input.md [-o output.docx] [--config config.yaml]
 """
 
 import re
@@ -77,6 +77,14 @@ class MarkdownHTMLParser(HTMLParser):
             "strikethrough": "strikethrough" in self.format_stack,
             "highlight": "mark" in self.format_stack,
         }
+
+    def _pop_format_stack(self, tag):
+        """Pop a tag from the format_stack using LIFO order.
+        Searches from the right (most recent push) and removes the first match."""
+        for i in range(len(self.format_stack) - 1, -1, -1):
+            if self.format_stack[i] == tag:
+                del self.format_stack[i]
+                break
 
     def _flush_element(self):
         if self.current_type is None:
@@ -199,20 +207,15 @@ class MarkdownHTMLParser(HTMLParser):
                 self.list_stack.pop()
 
         elif tag in ("strong", "b"):
-            if "bold" in self.format_stack:
-                self.format_stack.remove("bold")
+            self._pop_format_stack("bold")
         elif tag in ("em", "i"):
-            if "italic" in self.format_stack:
-                self.format_stack.remove("italic")
+            self._pop_format_stack("italic")
         elif tag == "del":
-            if "strikethrough" in self.format_stack:
-                self.format_stack.remove("strikethrough")
+            self._pop_format_stack("strikethrough")
         elif tag == "mark":
-            if "mark" in self.format_stack:
-                self.format_stack.remove("mark")
+            self._pop_format_stack("mark")
         elif tag == "code" and not self.in_pre:
-            if "code" in self.format_stack:
-                self.format_stack.remove("code")
+            self._pop_format_stack("code")
 
         elif tag == "a":
             self.current_href = None
@@ -398,7 +401,8 @@ def _restart_list_numbering(doc, paragraph, level):
     starts from 1 regardless of previous lists in the document."""
     try:
         np_part = doc.part.numbering_part
-    except Exception:
+    except AttributeError:
+        # numbering_part doesn't exist on fresh Document; it's created on first list
         return
 
     numbering = np_part._element
@@ -521,11 +525,10 @@ def add_table(doc, rows, config):
                 cell = table.cell(i, j)
                 cell.text = ""
                 paragraph = cell.paragraphs[0]
+                add_formatted_spans(paragraph, cell_data.get("spans", []), config)
                 if cell_data.get("header"):
-                    run = paragraph.add_run(cell_data["text"])
-                    run.bold = True
-                else:
-                    add_formatted_spans(paragraph, cell_data.get("spans", []), config)
+                    for run in paragraph.runs:
+                        run.bold = True
 
 
 def add_horizontal_rule(doc):
@@ -602,14 +605,12 @@ def convert_md_to_docx(md_text, config):
             paragraph = doc.add_paragraph(style=style)
             add_formatted_spans(paragraph, element["spans"], config)
             apply_body_style(paragraph, config)
-            if list_type == "ol":
-                if restart:
-                    # Creates a new w:num with startOverride=1 at this ilvl
-                    _restart_list_numbering(doc, paragraph, level)
-                elif level > 0:
-                    # Non-restart nested item: just set correct ilvl
-                    _set_list_ilvl(paragraph, level)
+            if list_type == "ol" and restart:
+                # Creates a new w:num with startOverride=1 at this ilvl
+                _restart_list_numbering(doc, paragraph, level)
             if level > 0:
+                # Set correct nesting level for proper bullet/number symbol at each level
+                _set_list_ilvl(paragraph, level)
                 paragraph.paragraph_format.left_indent = Inches(indent_size * level)
 
         elif etype == "code_block":
@@ -654,17 +655,42 @@ def save_docx(doc, output_path):
     doc.save(output_path)
 
 
-def load_config(config_path=None):
-    """Load styling configuration from YAML file."""
+def load_config(config_path=None, is_default=False):
+    """Load styling configuration from YAML file.
+    If is_default=True and the file doesn't exist, return empty dict.
+    If is_default=False and file doesn't exist, raise FileNotFoundError."""
     if config_path is None:
         config_path = "config.yaml"
+        is_default = True
 
     if not os.path.exists(config_path):
+        if is_default:
+            logger.info(f"Config file not found: {config_path} - using defaults")
+            return {}
         raise FileNotFoundError(f"Config file not found: {config_path}")
 
     with open(config_path, "r") as f:
         config = yaml.safe_load(f)
-    return config
+    return config if config else {}
+
+
+def resolve_output_path(input_path, output_arg):
+    """Resolve the output path from the --output argument.
+    If output_arg is None, use input filename with .docx extension in cwd.
+    If output_arg is a directory, place the .docx file inside it.
+    If output_arg is a filename, use it directly (append .docx if missing)."""
+    base_name = os.path.splitext(os.path.basename(input_path))[0] + ".docx"
+
+    if output_arg is None:
+        return base_name
+
+    if os.path.isdir(output_arg):
+        return os.path.join(output_arg, base_name)
+
+    # Append .docx if the user gave a name without it
+    if not output_arg.lower().endswith(".docx"):
+        output_arg += ".docx"
+    return output_arg
 
 
 def main():
@@ -674,33 +700,46 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python md2docx.py input.md output.docx
-  python md2docx.py input.md output.docx --config custom-config.yaml
+  python md2docx.py -i input.md
+  python md2docx.py -i input.md -o output.docx
+  python md2docx.py -i input.md -o ./output_dir/
+  python md2docx.py -i input.md -o report --config custom-config.yaml
         """,
     )
 
-    parser.add_argument("input", help="Input markdown file")
-    parser.add_argument("output", help="Output DOCX file")
+    parser.add_argument("-i", "--input", required=True, help="Input markdown file (.md)")
+    parser.add_argument(
+        "-o", "--output", default=None,
+        help="Output DOCX file or directory (default: <input_name>.docx in cwd)",
+    )
     parser.add_argument(
         "--config", default="config.yaml", help="Config file (default: config.yaml)"
     )
 
     args = parser.parse_args()
 
+    if not args.input.lower().endswith(".md"):
+        print("Error: Input file must be a .md file", file=sys.stderr)
+        sys.exit(1)
+
     if not os.path.exists(args.input):
         print(f"Error: Input file not found: {args.input}", file=sys.stderr)
         sys.exit(1)
 
+    output_path = resolve_output_path(args.input, args.output)
+
     try:
-        config = load_config(args.config)
+        # Only error if user explicitly specified a missing config; default is optional
+        is_default = (args.config == "config.yaml")
+        config = load_config(args.config, is_default=is_default)
 
         with open(args.input, "r", encoding="utf-8") as f:
             md_text = f.read()
 
         doc = convert_md_to_docx(md_text, config)
-        save_docx(doc, args.output)
+        save_docx(doc, output_path)
 
-        print(f"Converted {args.input} -> {args.output}")
+        print(f"Converted {args.input} -> {output_path}")
         sys.exit(0)
 
     except FileNotFoundError as e:
