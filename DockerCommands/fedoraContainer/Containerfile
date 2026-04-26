@@ -1,0 +1,12 @@
+FROM docker.io/library/fedora:latest
+
+RUN dnf install -y \
+    curl \
+    wget \
+    git \
+    net-tools \
+    openssh-clients \
+    iputils \
+    && dnf clean all
+
+CMD ["/bin/bash"]

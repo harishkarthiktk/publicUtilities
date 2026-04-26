@@ -8,15 +8,18 @@ import asyncio
 import sys
 import os
 import random
+import argparse
 from pathlib import Path
 from datetime import datetime
 import logging
 import signal
 import json
+import tempfile
 from typing import Optional, Dict, List, Any
+from urllib.parse import urlparse
 
 import yaml
-from playwright.async_api import async_playwright, Page, BrowserContext, Browser
+from playwright.async_api import async_playwright, Page, BrowserContext, Browser, TimeoutError as PlaywrightTimeoutError
 
 
 class PageRefresherConfig:
@@ -68,30 +71,27 @@ class PageRefresher:
         self.pages: Dict[str, Page] = {}
         self.loggers: Dict[str, TabLogger] = {}
         self.session_path = Path("sessions/session.json")
-        self.session_save_counter = 0
-        self.session_save_interval = 5
         self.shutdown_event = asyncio.Event()
+        self.restart_event = asyncio.Event()
 
-    def is_session_valid(self) -> bool:
-        """Validate session file structure and integrity"""
-        if not self.session_path.exists():
-            return False
-
+    def _is_valid_session_file(self, path: str) -> bool:
+        """Validate a Playwright session file at the given path"""
         try:
-            with open(self.session_path, "r") as f:
+            with open(path, "r") as f:
                 data = json.load(f)
-
-            # Check for expected session structure
             if not isinstance(data, dict):
                 return False
-
-            # Playwright sessions should have cookies and/or origins
             has_cookies = "cookies" in data and isinstance(data["cookies"], list)
             has_origins = "origins" in data and isinstance(data["origins"], list)
-
             return has_cookies or has_origins
         except Exception:
             return False
+
+    def is_session_valid(self) -> bool:
+        """Validate the current session file"""
+        if not self.session_path.exists():
+            return False
+        return self._is_valid_session_file(str(self.session_path))
 
     async def load_session(self) -> Optional[Dict]:
         """Load saved session if it exists and is valid"""
@@ -117,20 +117,65 @@ class PageRefresher:
         return None
 
     async def save_session(self):
-        """Save current session state"""
+        """Save session atomically; only replace existing file if new data validates."""
         if not self.context:
             return
+        tmp_path = None
         try:
             self.session_path.parent.mkdir(parents=True, exist_ok=True)
-            state = await self.context.storage_state(path=str(self.session_path))
-            self.session_save_counter = 0
+            fd, tmp_path = tempfile.mkstemp(
+                dir=str(self.session_path.parent), suffix=".tmp"
+            )
+            os.close(fd)
+            await self.context.storage_state(path=tmp_path)
+            if self._is_valid_session_file(tmp_path):
+                os.replace(tmp_path, str(self.session_path))
+            else:
+                os.unlink(tmp_path)
+                print("[!] Session data failed validation - keeping last good session")
         except Exception as e:
-            print(f"Warning: Failed to save session: {e}")
+            try:
+                if tmp_path:
+                    os.unlink(tmp_path)
+            except OSError:
+                pass
+            if "closed" not in str(e).lower():
+                print(f"Warning: Failed to save session: {e}")
+
+    async def _periodic_save_loop(self):
+        """Save session every 5 seconds until shutdown"""
+        while not self.shutdown_event.is_set():
+            try:
+                await asyncio.wait_for(self.shutdown_event.wait(), timeout=5.0)
+                break  # shutdown triggered within the 5s window
+            except asyncio.TimeoutError:
+                await self.save_session()
+
+    async def _cleanup_browser(self):
+        """Clean up browser and context resources"""
+        if self.context:
+            try:
+                await self.context.close()
+            except Exception:
+                pass
+            self.context = None
+        if self.browser:
+            try:
+                await self.browser.close()
+            except Exception:
+                pass
+            self.browser = None
+        self.pages.clear()
 
     async def init_browser(self):
         """Initialize Playwright browser and context"""
-        playwright = await async_playwright().start()
-        self.browser = await playwright.chromium.launch(headless=self.headless)
+        try:
+            playwright = await async_playwright().start()
+            self.browser = await playwright.chromium.launch(headless=self.headless)
+        except Exception as e:
+            print(f"Fatal: Failed to launch browser: {e}")
+            print("Ensure Playwright browsers are installed: playwright install chromium")
+            sys.exit(1)
 
         # Load session if available
         session = await self.load_session()
@@ -142,7 +187,38 @@ class PageRefresher:
         if session:
             context_kwargs["storage_state"] = session
 
-        self.context = await self.browser.new_context(**context_kwargs)
+        try:
+            self.context = await self.browser.new_context(**context_kwargs)
+        except Exception as e:
+            print(f"Fatal: Failed to create browser context: {e}")
+            await self.browser.close()
+            sys.exit(1)
+
+    async def _bind_save_hotkey(self, page: Page, label: str):
+        """Bind Ctrl+S on a page to force-save the session"""
+        async def handle_save():
+            print(f"[*] Save hotkey triggered from [{label}] - saving session...")
+            await self.save_session()
+            print(f"[*] Session saved.")
+
+        await page.expose_function("__forceSaveSession", lambda: asyncio.ensure_future(handle_save()))
+        await page.evaluate("""
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 's') {
+                    e.preventDefault();
+                    window.__forceSaveSession();
+                }
+            });
+        """)
+
+    def _is_auth_redirect(self, target_url: str, current_url: str) -> bool:
+        """Return True only if current_url looks like an auth/login page, not a legit app redirect."""
+        if current_url == target_url:
+            return False
+        target_host = urlparse(target_url).hostname or ""
+        current_host = urlparse(current_url).hostname or ""
+        # Same host = legit app redirect (e.g. /company/xxx/index.do)
+        return current_host != target_host
 
     async def navigate_all(self) -> List[str]:
         """Navigate all tabs to their URLs and wait for networkidle
@@ -158,10 +234,18 @@ class PageRefresher:
             self.pages[config.label] = page
 
             logger.log(f"Navigating to {config.url}")
-            await page.goto(config.url, wait_until="networkidle")
+            try:
+                await page.goto(config.url, wait_until="networkidle", timeout=60000)
+            except PlaywrightTimeoutError:
+                logger.log(f"Timeout navigating to {config.url} - page may still be usable")
+            except Exception as e:
+                logger.log(f"Error navigating to {config.url}: {e}")
+                continue
 
-            # Check if redirected (auth required)
-            if page.url != config.url:
+            await self._bind_save_hotkey(page, config.label)
+
+            # Check if redirected to an auth/login page (not a legit same-host app redirect)
+            if self._is_auth_redirect(config.url, page.url):
                 auth_required.append(config.label)
                 logger.log(f"Auth redirect detected: {page.url}")
 
@@ -187,19 +271,27 @@ class PageRefresher:
             logger = self.loggers[label]
 
             logger.log(f"Re-navigating after auth to {config.url}")
-            await page.goto(config.url, wait_until="networkidle")
+            try:
+                await page.goto(config.url, wait_until="networkidle", timeout=60000)
+            except PlaywrightTimeoutError:
+                logger.log(f"Timeout re-navigating to {config.url} - continuing anyway")
+            except Exception as e:
+                logger.log(f"Error re-navigating to {config.url}: {e}")
 
     async def monitor_tab(self, config: PageRefresherConfig):
         """Monitor a single tab: reload on interval, check selectors for changes"""
         page = self.pages[config.label]
         logger = self.loggers[config.label]
         previous = {}
+        first_run = True
 
         while not self.shutdown_event.is_set():
             try:
-                await page.reload(wait_until="networkidle")
-                ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                logger.log(f"Reloaded")
+                if first_run:
+                    first_run = False
+                else:
+                    await page.reload(wait_until="networkidle", timeout=60000)
+                    logger.log(f"Reloaded")
 
                 # Check selectors for changes
                 for selector in config.selectors:
@@ -213,13 +305,13 @@ class PageRefresher:
                             print(f"[CHANGE] [{config.label}] {selector}")
 
                         previous[selector] = values
+                    except PlaywrightTimeoutError:
+                        logger.log(f"Timeout checking selector {selector}")
                     except Exception as e:
                         logger.log(f"Error checking selector {selector}: {e}")
 
-                # Periodic session save
-                self.session_save_counter += 1
-                if self.session_save_counter >= self.session_save_interval:
-                    await self.save_session()
+                # Save session after each reload
+                await self.save_session()
 
                 # Sleep until next refresh with optional jitter
                 if config.jitter > 0:
@@ -233,7 +325,15 @@ class PageRefresher:
 
             except asyncio.CancelledError:
                 raise
+            except PlaywrightTimeoutError:
+                logger.log(f"Timeout reloading page - retrying in 30s")
+                await asyncio.sleep(30)
             except Exception as e:
+                crash_keywords = ("closed", "disconnected", "destroyed", "crashed")
+                if any(kw in str(e).lower() for kw in crash_keywords):
+                    logger.log(f"Browser crash detected: {e}")
+                    self.restart_event.set()
+                    return
                 logger.log(f"Error during monitoring: {e}")
                 await asyncio.sleep(5)
 
@@ -242,51 +342,78 @@ class PageRefresher:
         print("\n[*] Shutting down...")
         self.shutdown_event.set()
 
-        if self.context:
-            await self.save_session()
-            await self.context.close()
-
-        if self.browser:
-            await self.browser.close()
-
-        print("[*] Done")
-        sys.exit(0)
-
     async def run(self):
-        """Main run loop"""
-        try:
-            # Set up signal handlers now that event loop exists
-            loop = asyncio.get_running_loop()
+        """Main run loop with restart support"""
+        loop = asyncio.get_running_loop()
 
-            def handle_signal():
-                asyncio.create_task(self.shutdown())
+        def handle_signal():
+            asyncio.create_task(self.shutdown())
 
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                loop.add_signal_handler(sig, handle_signal)
+        def handle_save():
+            print("[*] SIGUSR1 received - force saving session...")
+            asyncio.create_task(self.save_session())
+
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(sig, handle_signal)
+        loop.add_signal_handler(signal.SIGUSR1, handle_save)
+
+        restart_count = 0
+
+        while True:
+            self.restart_event.clear()
 
             await self.init_browser()
-
-            # Navigate all tabs
             auth_required = await self.navigate_all()
 
-            # Handle auth if needed
-            await self.wait_for_auth(auth_required)
+            if auth_required:
+                if self.headless:
+                    for label in auth_required:
+                        self.loggers[label].log("Auth required in headless mode - retrying in 60s")
+                    await self._cleanup_browser()
+                    await asyncio.sleep(60)
+                    continue
+                else:
+                    await self.wait_for_auth(auth_required)
 
-            # Start monitoring all tabs concurrently
-            tasks = [
-                self.monitor_tab(config)
+            monitor_tasks = [
+                asyncio.create_task(self.monitor_tab(config), name=f"monitor_{config.label}")
                 for config in self.configs
             ]
+            monitor_tasks.append(
+                asyncio.create_task(self._periodic_save_loop(), name="periodic_save")
+            )
 
-            print("[*] Monitoring started. Press Ctrl+C to stop.\n")
+            if restart_count == 0:
+                print("[*] Monitoring started. Press Ctrl+C to stop.\n")
+            else:
+                print(f"[*] Monitoring resumed (restart #{restart_count}).\n")
 
-            await asyncio.gather(*tasks)
+            shutdown_waiter = asyncio.create_task(self.shutdown_event.wait())
+            restart_waiter  = asyncio.create_task(self.restart_event.wait())
+            all_tasks = set(monitor_tasks) | {shutdown_waiter, restart_waiter}
 
-        except KeyboardInterrupt:
-            await self.shutdown()
-        except Exception as e:
-            print(f"Fatal error: {e}")
-            await self.shutdown()
+            done, pending = await asyncio.wait(all_tasks, return_when=asyncio.FIRST_COMPLETED)
+
+            if shutdown_waiter in done or self.shutdown_event.is_set():
+                # Save session before canceling tasks and closing browser
+                await self.save_session()
+                # Now cancel pending monitor tasks
+                for t in pending:
+                    t.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                # Clean up browser
+                await self._cleanup_browser()
+                print("[*] Done")
+                sys.exit(0)
+
+            for t in pending:
+                t.cancel()
+            await asyncio.gather(*pending, return_exceptions=True)
+
+            restart_count += 1
+            print(f"[*] Browser crash detected - restarting (attempt {restart_count})...")
+            await self._cleanup_browser()
+            await asyncio.sleep(5)
 
 
 def load_configs(config_sources: List[str]) -> List[PageRefresherConfig]:
@@ -335,30 +462,54 @@ def load_yaml_file(path: Path) -> Dict[str, Any]:
 
 def main():
     """CLI entry point"""
-    headless = "--headless" in sys.argv
-    if headless:
-        sys.argv.remove("--headless")
+    parser = argparse.ArgumentParser(
+        description="Monitor web pages and detect changes",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  %(prog)s                      # Load all configs from ./configs directory
+  %(prog)s config.yaml          # Load single config file
+  %(prog)s configs/ more_configs/  # Load from multiple directories
+  %(prog)s --headless config.yaml  # Run in headless mode (requires saved session)
+  %(prog)s --refresh            # Clear saved session and exit
+        """.strip()
+    )
 
-    refresh_session = "--refresh" in sys.argv
-    if refresh_session:
-        sys.argv.remove("--refresh")
+    parser.add_argument(
+        "config_sources",
+        nargs="*",
+        default=["configs"],
+        help="Config file(s) or directory(ies) to load (default: configs)"
+    )
+    parser.add_argument(
+        "--headless",
+        action="store_true",
+        help="Run in headless mode (requires valid saved session)"
+    )
+    parser.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Clear saved session and exit"
+    )
+
+    args = parser.parse_args()
+
+    # Handle --refresh flag
+    if args.refresh:
         session_path = Path("sessions/session.json")
         if session_path.exists():
             session_path.unlink()
             print("[*] Session cleared")
         sys.exit(0)
 
-    # Determine config sources
-    config_sources = sys.argv[1:] if len(sys.argv) > 1 else ["configs"]
-
     # Verify config sources exist
-    for source in config_sources:
+    for source in args.config_sources:
         if not Path(source).exists():
             print(f"Error: {source} not found")
             sys.exit(1)
 
     # Load configs
-    configs = load_configs(config_sources)
+    configs = load_configs(args.config_sources)
 
     print(f"[*] Loaded {len(configs)} config(s)")
     for config in configs:
@@ -366,14 +517,14 @@ def main():
 
     # Verify session exists in headless mode
     session_path = Path("sessions/session.json")
-    if headless and not session_path.exists():
+    if args.headless and not session_path.exists():
         print("Error: Session expired. Re-run without --headless to log in again.")
         sys.exit(1)
 
     print()
 
     # Run
-    refresher = PageRefresher(configs, headless=headless)
+    refresher = PageRefresher(configs, headless=args.headless)
     try:
         asyncio.run(refresher.run())
     except KeyboardInterrupt:
