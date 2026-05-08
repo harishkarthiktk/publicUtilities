@@ -15,6 +15,7 @@ cleanFiles.sh
 .env
 token_analysis*
 .DS_Store
+markdownUtils/z_archive/docs/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
