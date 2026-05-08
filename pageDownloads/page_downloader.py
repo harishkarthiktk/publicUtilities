@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import os
 import re
+from urllib.parse import urlparse
 
 import markdownify
 from bs4 import BeautifulSoup
@@ -90,7 +91,7 @@ async def save_webpage_as_html(title, url, page, output_dir):
         logger.error(f"Failed to save HTML for {url}: {e}")
 
 
-async def save_webpage_as_markdown(title, url, browser, output_dir, save_html=False):
+async def save_webpage_as_markdown(title, url, context, output_dir, save_html=False):
     """
     Loads the webpage, extracts rendered content, saves it as Markdown.
     If save_html is True, also saves as a self-contained MHTML file.
@@ -99,7 +100,7 @@ async def save_webpage_as_markdown(title, url, browser, output_dir, save_html=Fa
     page = None
     try:
         logger.debug(f"Creating new page for {url}...")
-        page = await browser.new_page()
+        page = await context.new_page()
         logger.debug(f"Navigating to {url}...")
         timeout = config.get('page_downloader', 'playwright.timeout', 60000)
         await page.goto(url, timeout=timeout)
@@ -145,7 +146,7 @@ async def save_webpage_as_markdown(title, url, browser, output_dir, save_html=Fa
             except Exception as e:
                 logger.debug(f"Error closing page for {url}: {e}")
 
-async def main(input_file, output_dir, save_html=False, single_url=None):
+async def main(input_file, output_dir, save_html=False, single_url=None, login=False):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -169,8 +170,45 @@ async def main(input_file, output_dir, save_html=False, single_url=None):
         async with async_playwright() as p:
             logger.info("Launching browser...")
             headless = config.get('page_downloader', 'playwright.headless', True)
+            if login:
+                headless = False
             browser = await p.chromium.launch(headless=headless)
             logger.info("Browser launched successfully.")
+
+            if login:
+                # Create a context and open a page for manual login
+                first_url = links[0][1]
+                parsed = urlparse(first_url)
+                login_url = f"{parsed.scheme}://{parsed.netloc}"
+                context = await browser.new_context()
+                login_page = await context.new_page()
+                await login_page.goto(login_url)
+                initial_url = login_page.url
+                logger.info(f"Browser opened at {login_url} - please log in.")
+                logger.info("Waiting up to 60s for URL change (login redirect)...")
+
+                # Wait for URL to change (indicates login redirect), timeout 60s
+                try:
+                    await login_page.wait_for_url(
+                        lambda url: url != initial_url,
+                        timeout=60000
+                    )
+                    logger.info("Login detected via URL change.")
+                except Exception:
+                    logger.info("Auto-detection timed out.")
+                    await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: input("Press Enter after you have logged in to continue...")
+                    )
+
+                # Verify browser is still connected
+                if not browser.is_connected():
+                    logger.error("Browser was closed. Exiting.")
+                    return
+
+                await login_page.close()
+                logger.info("Login complete. Proceeding with downloads.")
+            else:
+                context = await browser.new_context()
 
             # Process with concurrency limit
             concurrency_limit = config.get('page_downloader', 'playwright.concurrency_limit', 5)
@@ -178,8 +216,11 @@ async def main(input_file, output_dir, save_html=False, single_url=None):
 
             async def process_with_semaphore(title, url):
                 async with semaphore:
+                    if not browser.is_connected():
+                        logger.error("Browser disconnected. Skipping remaining pages.")
+                        return
                     logger.info(f"Processing: {url}")
-                    await save_webpage_as_markdown(title, url, browser, output_dir, save_html=save_html)
+                    await save_webpage_as_markdown(title, url, context, output_dir, save_html=save_html)
 
             # Create tasks for all links
             tasks = [process_with_semaphore(title, url) for title, url in links]
@@ -206,9 +247,10 @@ if __name__ == "__main__":
     input_group.add_argument('-u', '--url', help='Single URL to download')
     parser.add_argument('-o', '--output-folder', default=config.get('page_downloader', 'output.default_folder', './outputs/markdown'), help='Output folder path')
     parser.add_argument('--html', action='store_true', help='Also save each page as a self-contained MHTML file')
+    parser.add_argument('--login', action='store_true', help='Open browser for manual login before downloading')
     args = parser.parse_args()
 
     if args.url:
-        asyncio.run(main(None, args.output_folder, save_html=args.html, single_url=args.url))
+        asyncio.run(main(None, args.output_folder, save_html=args.html, single_url=args.url, login=args.login))
     else:
-        asyncio.run(main(args.input_file, args.output_folder, save_html=args.html))
+        asyncio.run(main(args.input_file, args.output_folder, save_html=args.html, login=args.login))

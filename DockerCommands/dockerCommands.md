@@ -1,6 +1,6 @@
-docker run -d \
+podman run -d \
   --name qdrant \
-  --restart always \
+  --restart=always \
   -p 6333:6333 \
   -p 6334:6334 \
   -v qdrant_data:/qdrant/storage \
@@ -22,7 +22,7 @@ podman run -d --device nvidia.com/gpu=all --security-opt=label=disable -v ollama
 podman run -d \
   --name n8n \
   --restart=always \
-≈  -p 5678:5678 \
+  -p 5678:5678 \
   -e GENERIC_TIMEZONE="Asia/Kolkata" \
   -e TZ="Asia/Kolkata" \
   -e N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true \
@@ -30,18 +30,16 @@ podman run -d \
   -v n8n_data:/home/node/.n8n \
   docker.n8n.io/n8nio/n8n
 
-
 podman system df -v #to show space utilization of VM of podman, in OSX.
 
 podman run -d \
   --name postgres \
+  --restart=always \
   -e POSTGRES_PASSWORD=mysecretpassword \
   -p 5432:5432 \
   -v postgres_data:/var/lib/postgresql/data \
   docker.io/postgres:17
 
-podman run -d --name postgres -e POSTGRES_PASSWORD=mysecret -p 5432:5432 -v postgres_data:/var/lib/postgresql/data docker.io/postgres:17
-
 # Excalidraw
-podman run --rm -dit --name excalidraw -p 5000:80 excalidraw/excalidraw:latest
+podman run -d --restart=unless-stopped --name excalidraw -p 5005:80 excalidraw/excalidraw:latest
 
