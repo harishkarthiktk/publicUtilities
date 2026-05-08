@@ -1,12 +1,29 @@
 FROM docker.io/library/fedora:latest
 
-RUN dnf install -y \
+RUN dnf update -y && \
+    dnf install -y \
     curl \
+    lsd \
     wget \
     git \
     net-tools \
     openssh-clients \
     iputils \
+    zsh \
+    vim \
+    nano \
+    procps-ng \
+    which \
+    findutils \
+    tar \
+    gzip \
+    unzip \
+    xz \
+    nodejs \
+    npm \
+    python3 \
+    pip \
+    zoxide \
     && dnf clean all
 
 CMD ["/bin/bash"]

@@ -17,5 +17,5 @@ if ! podman container inspect "$CONTAINER_NAME" --format='{{.State.Running}}' 2>
     exit 1
 fi
 
-# Execute bash in the container
-podman exec -it "$CONTAINER_NAME" bash
+# Execute zsh in the container
+podman exec -it "$CONTAINER_NAME" zsh

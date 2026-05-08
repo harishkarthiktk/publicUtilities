@@ -7,8 +7,10 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    shm_size: "1gb"
+
     volumes:
-      - fedora_home:/root
+      - fedora_home:/root:Z
 
 volumes:
   fedora_home:
