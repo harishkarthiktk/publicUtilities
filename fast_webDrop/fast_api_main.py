@@ -251,6 +251,7 @@ if __name__ == "__main__":
     setup_signal_handlers()
 
     # Run with shutdown_timeout to allow requests to complete
+    # Note: For hot reloading, use: uvicorn fast_api_main:app --reload --host 0.0.0.0 --port 8000
     uvicorn.run(
         app,
         host="0.0.0.0",

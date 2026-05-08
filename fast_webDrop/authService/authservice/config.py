@@ -248,7 +248,7 @@ class AuthConfig:
 
         if strict:
             # Check all passwords are hashed
-            from authservice.hashing import is_bcrypt_hash
+            from .hashing import is_bcrypt_hash
 
             for username, password in self._users.items():
                 if not is_bcrypt_hash(password):

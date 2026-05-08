@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/c/Users/haris/.venv/Scripts/python
 # -*- coding: utf-8 -*-
 """
 organizeFiles.py
@@ -14,9 +14,11 @@ import logging
 import os
 import shutil
 import sys
+import threading
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import List, Tuple
+from typing import Callable, List, Set, Tuple
 from tqdm import tqdm
 
 # Configuration
@@ -59,88 +61,123 @@ def parse_args():
     return p.parse_args()
 
 
-def is_subpath(child: Path, parent: Path) -> bool:
-    try:
-        child.relative_to(parent)
-        return True
-    except Exception:
-        return False
+def gather_files(root: Path, recursive: bool, other_folder: str) -> List[Tuple[Path, str]]:
+    """Walk the tree with os.scandir and return (path, lowercased_suffix) tuples.
 
+    Only the current mode's destination subfolder (other_folder) is pruned at
+    the top level — files already there are at their destination. The opposite
+    folder (e.g. Pic in -P mode) is intentionally scanned so any primary-type
+    files inside it can be moved to root.
+    """
+    excluded_top_level = {other_folder}
+    out: List[Tuple[Path, str]] = []
 
-def gather_files(root: Path, recursive: bool) -> List[Path]:
-    files = []
-    root = root.resolve()
-    root_parts = len(root.parts)
-
-    pic_folder = root / "Pic"
-    vid_folder = root / "Vid"
-
-    for dirpath, dirnames, filenames in os.walk(root):
-        current = Path(dirpath).resolve()
-        depth = len(current.parts) - root_parts
+    def walk(dir_path: Path, depth: int):
         if depth > MAX_RECURSION:
-            dirnames[:] = []
-            continue
-        if not recursive and current != root:
-            dirnames[:] = []
-            continue
-        if is_subpath(current, pic_folder) and current != root:
-            dirnames[:] = []
-            continue
-        if is_subpath(current, vid_folder) and current != root:
-            dirnames[:] = []
-            continue
-        for fn in filenames:
-            fp = current / fn
-            if is_subpath(fp, pic_folder) or is_subpath(fp, vid_folder):
-                continue
-            files.append(fp)
-    return files
-
-
-def unique_dest_path(dest: Path) -> Path:
-    if not dest.exists():
-        return dest
-    stem, suffix, parent = dest.stem, dest.suffix, dest.parent
-    counter = 1
-    while True:
-        candidate = parent / f"{stem}_{counter}{suffix}"
-        if not candidate.exists():
-            return candidate
-        counter += 1
-
-
-def move_file(src: Path, dest_dir: Path) -> Tuple[Path, Path, bool, str]:
-    try:
-        dest_dir.mkdir(parents=True, exist_ok=True)
-        dest = dest_dir / src.name
+            return
         try:
-            if src.resolve() == dest.resolve():
-                return src, dest, True, "skipped (already at destination)"
-        except Exception:
-            pass
-        dest = unique_dest_path(dest)
+            with os.scandir(dir_path) as it:
+                entries = list(it)
+        except OSError as e:
+            logger.error(f"Cannot scan {dir_path}: {e}")
+            return
+        for entry in entries:
+            try:
+                if entry.is_dir(follow_symlinks=False):
+                    if not recursive:
+                        continue
+                    if depth == 0 and entry.name in excluded_top_level:
+                        continue
+                    walk(Path(entry.path), depth + 1)
+                elif entry.is_file():
+                    # follow_symlinks=True (default) so symlinks to files are
+                    # collected, matching os.walk's behaviour.
+                    p = Path(entry.path)
+                    out.append((p, p.suffix.lower()))
+            except OSError:
+                continue
+
+    walk(root, 0)
+    return out
+
+
+def make_unique_path_provider() -> Callable[[Path], Path]:
+    """Returns a thread-safe function that yields a non-conflicting destination
+    path and reserves it so concurrent workers can't pick the same suffix (P6).
+
+    Per-destination-directory locks keep contention tight; the in-memory
+    `reserved` set short-circuits repeated `exists()` syscalls after the first
+    conflict.
+    """
+    locks: dict = defaultdict(threading.Lock)
+    reserved: dict = defaultdict(set)
+
+    def provider(dest: Path) -> Path:
+        parent = dest.parent
+        stem, suffix = dest.stem, dest.suffix
+        lock = locks[parent]
+        with lock:
+            r = reserved[parent]
+            if dest.name not in r and not dest.exists():
+                r.add(dest.name)
+                return dest
+            counter = 1
+            while True:
+                cand_name = f"{stem}_{counter}{suffix}"
+                cand = parent / cand_name
+                if cand_name not in r and not cand.exists():
+                    r.add(cand_name)
+                    return cand
+                counter += 1
+
+    return provider
+
+
+def move_file(src: Path, dest_dir: Path, get_unique: Callable[[Path], Path]) -> Tuple[Path, Path, bool, str]:
+    try:
+        dest = dest_dir / src.name
+        if src == dest:
+            return src, dest, True, "skipped (already at destination)"
+        dest = get_unique(dest)
         shutil.move(str(src), str(dest))
         return src, dest, True, "moved"
     except Exception as e:
         return src, dest_dir, False, f"error: {e}"
 
 
-def remove_empty_folders(root_path: Path):
+def remove_empty_folders_targeted(root_path: Path, source_dirs: Set[Path], other_folder: str):
+    """Only check directories that had files moved out, plus their ancestors up
+    to (but not including) root_path (P1). Replaces a full second os.walk over
+    the working tree.
+
+    Only the current mode's destination subfolder (other_folder) is protected
+    from deletion — it is the canonical output location and should persist even
+    when empty. The opposite folder is eligible for removal if emptied.
     """
-    Recursively scans and removes empty folders starting from the root_path.
-    """
-    for dirpath, dirnames, filenames in os.walk(root_path, topdown=False):
-        current_dir = Path(dirpath)
-        # Exclude main Pic and Vid folders
-        if current_dir.name in ["Pic", "Vid"] and current_dir.parent == root_path:
+    excluded = {root_path / other_folder}
+    to_check: Set[Path] = set()
+    for d in source_dirs:
+        try:
+            d.relative_to(root_path)
+        except ValueError:
             continue
-        if not any(current_dir.iterdir()):
-            try:
-                current_dir.rmdir()
-                logger.info(f"Deleted empty folder: {current_dir}")
-            except OSError as e:
-                logger.error(f"Error removing folder {current_dir}: {e}")
+        cur = d
+        while cur != root_path:
+            to_check.add(cur)
+            parent = cur.parent
+            if parent == cur:
+                break
+            cur = parent
+
+    for d in sorted(to_check, key=lambda p: len(p.parts), reverse=True):
+        if d in excluded:
+            continue
+        try:
+            if d.exists() and not any(d.iterdir()):
+                d.rmdir()
+                logger.info(f"Deleted empty folder: {d}")
+        except OSError as e:
+            logger.error(f"Error removing folder {d}: {e}")
 
 
 def main():
@@ -165,35 +202,30 @@ def main():
 
     logger.info(f"Running in {mode.upper()} mode")
 
-    files = gather_files(working_dir, recursive)
-    logger.info(f"Found {len(files)} files under {working_dir}")
-
-    primary_files = [f for f in files if f.suffix.lower() in primary_exts]
-    other_files = [f for f in files if f.suffix.lower() not in primary_exts]
+    files_with_ext = gather_files(working_dir, recursive, other_folder_name)
+    logger.info(f"Found {len(files_with_ext)} files under {working_dir}")
 
     primary_dest_dir = working_dir
     other_dest_dir = working_dir / other_folder_name
 
-    def needs_move(fp: Path, destination_dir: Path) -> bool:
-        try:
-            return fp.resolve().parent != destination_dir.resolve()
-        except Exception:
-            return True
-
-    move_jobs = []
-    for pf in primary_files:
-        if needs_move(pf, primary_dest_dir):
-            move_jobs.append((pf, primary_dest_dir))
-    for of in other_files:
-        if needs_move(of, other_dest_dir):
-            move_jobs.append((of, other_dest_dir))
+    # Single-pass partition (validation #5) using cached suffix (validation #6).
+    # Drop Path.resolve() in the hot path: gather built paths under the already-
+    # resolved root, so a plain parent comparison is sufficient (P3).
+    move_jobs: List[Tuple[Path, Path]] = []
+    for fp, ext in files_with_ext:
+        if ext in primary_exts:
+            if fp.parent != primary_dest_dir:
+                move_jobs.append((fp, primary_dest_dir))
+        else:
+            if fp.parent != other_dest_dir:
+                move_jobs.append((fp, other_dest_dir))
 
     total_jobs = len(move_jobs)
     if total_jobs == 0:
         logger.info("No files need moving. Exiting.")
     else:
         # Count unique folders to be reorganized
-        unique_folders = set(src.parent for src, dest_dir in move_jobs)
+        unique_folders = set(src.parent for src, _ in move_jobs)
         num_folders = len(unique_folders)
         logger.info(f"Found {num_folders} unique folders to reorganize.")
 
@@ -204,10 +236,25 @@ def main():
                 return
 
         logger.info(f"Will operate on {total_jobs} files.")
-        max_workers = min(32, (os.cpu_count() or 4) * 4)
+
+        # Pre-create destination directories once instead of from every worker (P4).
+        for dest in {primary_dest_dir, other_dest_dir}:
+            dest.mkdir(parents=True, exist_ok=True)
+
+        # Group by destination so the OS dir-entry cache stays warm (P7).
+        move_jobs.sort(key=lambda j: str(j[1]))
+
+        get_unique = make_unique_path_provider()
+
+        # Worker count tuned for I/O bound moves: too high causes head thrashing
+        # on HDDs and only marginal benefit on SSDs (validation #4).
+        max_workers = min(16, (os.cpu_count() or 4) * 2)
         results = []
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            future_to_job = {ex.submit(move_file, src, dest_dir): (src, dest_dir) for src, dest_dir in move_jobs}
+            future_to_job = {
+                ex.submit(move_file, src, dest_dir, get_unique): (src, dest_dir)
+                for src, dest_dir in move_jobs
+            }
             for future in tqdm(as_completed(future_to_job), total=total_jobs, desc="Moving files"):
                 try:
                     src, dest, success, message = future.result()
@@ -223,9 +270,12 @@ def main():
         failed = sum(1 for r in results if not r[2])
         logger.info(f"Operation complete. Success: {moved}. Failed: {failed}.")
 
-    logger.info("Cleaning up empty folders...")
-    remove_empty_folders(working_dir)
-    logger.info("Cleanup complete.")
+        logger.info("Cleaning up empty folders...")
+        # Targeted cleanup walks only directories that lost files plus their
+        # ancestors, instead of re-walking the entire working tree (P1).
+        remove_empty_folders_targeted(working_dir, unique_folders, other_folder_name)
+        logger.info("Cleanup complete.")
+    return
 
 
 if __name__ == "__main__":

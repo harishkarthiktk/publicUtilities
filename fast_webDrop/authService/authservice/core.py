@@ -7,11 +7,11 @@ import base64
 from typing import Optional, Tuple, Dict, Any
 from datetime import datetime
 
-from authservice.models import User, AuthResult
-from authservice.config import AuthConfig
-from authservice.logger import setup_logger, setup_logger_from_config, AuthLogger
-from authservice.hashing import hash_password, verify_password, is_bcrypt_hash
-from authservice.appconfig import AppConfig
+from .models import User, AuthResult
+from .config import AuthConfig
+from .logger import setup_logger, setup_logger_from_config, AuthLogger
+from .hashing import hash_password, verify_password, is_bcrypt_hash
+from .appconfig import AppConfig
 
 # Dummy hash for constant-time comparison (prevents timing attacks)
 # This is a bcrypt hash of an empty string
